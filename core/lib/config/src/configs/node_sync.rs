@@ -15,6 +15,7 @@ pub struct NodeSyncConfig {
     /// Toggle for disabling seal criteria validation in case of some issues / forced proved batches
     #[config(default_t = true)]
     pub validate_seal_criteria: bool,
+
 }
 
 #[cfg(test)]

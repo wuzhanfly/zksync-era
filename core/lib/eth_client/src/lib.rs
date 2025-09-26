@@ -24,6 +24,7 @@ pub use crate::types::{
 
 pub mod clients;
 pub mod contracts_loader;
+pub mod network_validation;
 #[cfg(feature = "node_framework")]
 pub mod node;
 mod types;

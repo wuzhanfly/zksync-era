@@ -484,3 +484,24 @@ pub struct UpdatesManagerMetrics {
 #[vise::register]
 pub(crate) static UPDATES_MANAGER_METRICS: vise::Global<UpdatesManagerMetrics> =
     vise::Global::new();
+/// BSC-specific metrics for state management
+#[derive(Debug, Metrics)]
+#[metrics(prefix = "bsc_state_keeper")]
+pub struct BSCStateKeeperMetrics {
+    /// Number of BSC state updates processed
+    pub bsc_state_updates: Counter,
+    /// BSC state processing time
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_state_processing_time: Histogram<Duration>,
+    /// BSC state cache hits
+    pub bsc_state_cache_hits: Counter,
+    /// BSC state batch processing time
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_state_batch_processing_time: Histogram<Duration>,
+    /// BSC state compression ratio
+    #[metrics(buckets = Buckets::exponential(0.1..=1.0, 1.1))]
+    pub bsc_state_compression_ratio: Histogram<f64>,
+}
+
+#[vise::register]
+pub(crate) static BSC_STATE_KEEPER_METRICS: vise::Global<BSCStateKeeperMetrics> = vise::Global::new();

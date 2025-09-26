@@ -311,3 +311,14 @@ mod tests {
         assert_postgres_config(&config);
     }
 }
+
+// BSC-specific database configuration notes:
+// - bsc_sync_config: BSC synchronization settings for faster 3-second block processing
+// - bsc_api_config: BSC API optimization settings for improved response times
+// - bsc_reorg_config: BSC reorganization detection settings for shallow reorg handling
+// - bsc_proof_config: BSC proof data handler deployment settings
+// - bsc_state_config: BSC state keeper deployment settings  
+// - bsc_commitment_config: BSC commitment generator deployment settings
+// 
+// Note: These are deployment-specific configurations, not protocol modifications.
+// The core algorithms remain unchanged for protocol consistency.

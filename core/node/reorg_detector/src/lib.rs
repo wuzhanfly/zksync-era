@@ -13,6 +13,8 @@ use zksync_web3_decl::{
     namespaces::{EthNamespaceClient, ZksNamespaceClient},
 };
 
+pub mod bsc_detector;
+pub mod metrics;
 pub mod node;
 #[cfg(test)]
 mod tests;
@@ -663,3 +665,6 @@ async fn binary_search_with<P: BinarySearchPredicate>(
     }
     Ok(left)
 }
+
+// Re-export BSC-specific types and functions
+pub use bsc_detector::{BSCReorgConfig, BSCReorgDetector, BSCReorgEvent, BSCReorgStats};

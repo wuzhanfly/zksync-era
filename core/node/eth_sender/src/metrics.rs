@@ -158,6 +158,26 @@ pub(super) struct EthSenderMetrics {
     /// Number of L1 batches aggregated for publishing with a specific reason.
     pub block_aggregation_reason: Family<AggregationReasonLabels, Counter>,
     pub l1_transient_errors: Counter,
+    
+    // BSC-specific metrics
+    /// Number of BSC transactions sent
+    pub bsc_tx_sent: Counter,
+    /// Number of BSC transactions confirmed
+    pub bsc_tx_confirmed: Counter,
+    /// Duration to send BSC transaction
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_tx_send_duration: Histogram<Duration>,
+    /// Duration to confirm BSC transaction
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_confirmation_duration: Histogram<Duration>,
+    /// Current BSC gas price in Gwei
+    pub bsc_current_gas_price_gwei: Gauge<f64>,
+    /// BSC gas price adjustments
+    pub bsc_gas_price_adjustments: Counter,
+    /// BSC legacy transaction usage
+    pub bsc_legacy_tx_used: Counter,
+    /// BSC transaction failures
+    pub bsc_tx_failures: Counter,
 }
 
 impl EthSenderMetrics {

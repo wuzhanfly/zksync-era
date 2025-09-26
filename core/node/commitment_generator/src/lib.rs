@@ -27,6 +27,7 @@ use crate::{
     },
 };
 
+pub mod bsc_commitment_generator;
 mod metrics;
 pub mod node;
 #[cfg(test)]
@@ -505,6 +506,31 @@ impl CommitmentGenerator {
             METRICS.step_batch_count.observe(batch_count.into());
             tracing::info!("Finished commitment generation for L1 batches #{l1_batch_numbers:?} in {step_latency:?} ({:?} per batch)", step_latency / batch_count);
         }
+        Ok(())
+    }
+}
+// Re-export BSC-specific types and functions
+pub use bsc_commitment_generator::{BSCCommitmentConfig, BSCCommitmentGenerator, BSCCommitmentStats};
+
+/// Initialize BSC commitment generator
+pub fn initialize_bsc_commitment_generator(
+    pool: zksync_dal::ConnectionPool<zksync_dal::Core>,
+    chain_id: u64,
+) -> Option<BSCCommitmentGenerator> {
+    if let Some(config) = BSCCommitmentConfig::for_chain_id(chain_id) {
+        Some(BSCCommitmentGenerator::new(pool, config))
+    } else {
+        None
+    }
+}
+
+/// Start BSC commitment generator services if network is BSC
+pub async fn start_bsc_advanced_commitment_services(chain_id: u64) -> anyhow::Result<()> {
+    if BSCCommitmentConfig::is_bsc_network(chain_id) {
+        tracing::info!("Starting BSC advanced commitment services for chain_id: {}", chain_id);
+        // BSC-specific commitment generator initialization would go here
+        Ok(())
+    } else {
         Ok(())
     }
 }

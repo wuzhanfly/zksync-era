@@ -1,0 +1,89 @@
+{
+  "BNB": {
+    "name": "Binance Coin",
+    "symbol": "BNB",
+    "decimals": 18,
+    "address": "0x0000000000000000000000000000000000000000",
+    "l1Address": "0x0000000000000000000000000000000000000000",
+    "l2Address": "0x000000000000000000000000000000000000800a",
+    "isNative": true,
+    "category": "native"
+  },
+  "WBNB": {
+    "name": "Wrapped BNB",
+    "symbol": "WBNB",
+    "decimals": 18,
+    "address": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+    "l1Address": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+    "l2Address": "",
+    "isNative": false,
+    "category": "wrapped",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd.png"
+  },
+  "BUSD": {
+    "name": "Binance USD",
+    "symbol": "BUSD",
+    "decimals": 18,
+    "address": "0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee",
+    "l1Address": "0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee",
+    "l2Address": "",
+    "isNative": false,
+    "category": "stablecoin",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee.png"
+  },
+  "USDT": {
+    "name": "Tether USD",
+    "symbol": "USDT",
+    "decimals": 18,
+    "address": "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
+    "l1Address": "0x337610d27c682E347C9cD60BD4b3b107C9d34dDd",
+    "l2Address": "",
+    "isNative": false,
+    "category": "stablecoin",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0x337610d27c682E347C9cD60BD4b3b107C9d34dDd.png"
+  },
+  "USDC": {
+    "name": "USD Coin",
+    "symbol": "USDC",
+    "decimals": 18,
+    "address": "0x64544969ed7EBf5f083679233325356EbE738930",
+    "l1Address": "0x64544969ed7EBf5f083679233325356EbE738930",
+    "l2Address": "",
+    "isNative": false,
+    "category": "stablecoin",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0x64544969ed7EBf5f083679233325356EbE738930.png"
+  },
+  "CAKE": {
+    "name": "PancakeSwap Token",
+    "symbol": "CAKE",
+    "decimals": 18,
+    "address": "0xFa60D973F7642B748046464e165A65B7323b0DEE",
+    "l1Address": "0xFa60D973F7642B748046464e165A65B7323b0DEE",
+    "l2Address": "",
+    "isNative": false,
+    "category": "defi",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0xFa60D973F7642B748046464e165A65B7323b0DEE.png"
+  },
+  "BTCB": {
+    "name": "Bitcoin BEP2",
+    "symbol": "BTCB",
+    "decimals": 18,
+    "address": "0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8",
+    "l1Address": "0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8",
+    "l2Address": "",
+    "isNative": false,
+    "category": "wrapped",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0x6ce8dA28E2f864420840cF74474eFf5fD80E65B8.png"
+  },
+  "ETH": {
+    "name": "Ethereum Token",
+    "symbol": "ETH",
+    "decimals": 18,
+    "address": "0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378",
+    "l1Address": "0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378",
+    "l2Address": "",
+    "isNative": false,
+    "category": "wrapped",
+    "logoURI": "https://tokens.pancakeswap.finance/images/0xd66c6B4F0be8CE5b39D52E0Fd1344c389929B378.png"
+  }
+}

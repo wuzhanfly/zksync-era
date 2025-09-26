@@ -36,3 +36,24 @@ pub(super) struct CommitmentGeneratorMetrics {
 
 #[vise::register]
 pub(super) static METRICS: vise::Global<CommitmentGeneratorMetrics> = vise::Global::new();
+/// BSC-specific metrics for commitment generation
+#[derive(Debug, Metrics)]
+#[metrics(prefix = "bsc_commitment_generator")]
+pub(super) struct BSCCommitmentGeneratorMetrics {
+    /// Number of BSC commitments generated
+    pub bsc_commitments_generated: vise::Counter,
+    /// BSC commitment generation time
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_commitment_generation_time: Histogram<Duration>,
+    /// BSC commitment cache hits
+    pub bsc_commitment_cache_hits: vise::Counter,
+    /// BSC commitment batch processing time
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_commitment_batch_processing_time: Histogram<Duration>,
+    /// BSC commitment compression ratio
+    #[metrics(buckets = Buckets::exponential(0.1..=1.0, 1.1))]
+    pub bsc_commitment_compression_ratio: Histogram<f64>,
+}
+
+#[vise::register]
+pub(super) static BSC_COMMITMENT_METRICS: vise::Global<BSCCommitmentGeneratorMetrics> = vise::Global::new();

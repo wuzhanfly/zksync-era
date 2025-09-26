@@ -1,5 +1,6 @@
 mod aggregated_operations;
 mod aggregator;
+mod bsc_tx_manager;
 mod error;
 mod eth_tx_aggregator;
 mod eth_tx_manager;
@@ -19,6 +20,9 @@ mod tests;
 mod tester;
 
 pub use self::{
-    aggregator::Aggregator, error::EthSenderError, eth_tx_aggregator::EthTxAggregator,
+    aggregator::Aggregator, 
+    bsc_tx_manager::{BSCTxManager, BSCTxManagerConfig, BSCNetworkStatus},
+    error::EthSenderError, 
+    eth_tx_aggregator::EthTxAggregator,
     eth_tx_manager::EthTxManager,
 };

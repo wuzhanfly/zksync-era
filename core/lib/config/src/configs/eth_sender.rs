@@ -10,7 +10,7 @@ use smart_config::{
 use zksync_basic_types::{pubdata_da::PubdataSendingMode, H256};
 use zksync_crypto_primitives::K256PrivateKey;
 
-use crate::{utils::Fallback, EthWatchConfig};
+use crate::{utils::Fallback, EthWatchConfig, configs::networks::{L1Network, BSCNetworkConfig}};
 
 /// Configuration for the Ethereum related components.
 #[derive(Debug, Clone, PartialEq, DescribeConfig, DeserializeConfig)]
@@ -23,6 +23,9 @@ pub struct EthConfig {
     pub gas_adjuster: GasAdjusterConfig,
     #[config(nest, alias = "watch")]
     pub watcher: EthWatchConfig,
+    /// L1 network type (optional, for network-specific optimizations)
+    #[config(default)]
+    pub l1_network: Option<L1Network>,
 }
 
 impl EthConfig {
@@ -74,6 +77,87 @@ impl EthConfig {
                 event_expiration_blocks: 50000,
                 eth_node_poll_interval: Duration::ZERO,
             },
+            l1_network: Some(L1Network::Localhost),
+        }
+    }
+
+    /// Create an EthConfig optimized for BSC mainnet
+    pub fn for_bsc_mainnet() -> Self {
+        let mut config = Self::for_tests();
+        config.l1_network = Some(L1Network::BSCMainnet);
+        
+        // BSC-specific optimizations
+        config.gas_adjuster.default_priority_fee_per_gas = 0; // BSC doesn't support EIP-1559
+        config.gas_adjuster.max_l1_gas_price = 20_000_000_000; // 20 Gwei max
+        config.gas_adjuster.pricing_formula_parameter_a = 1.06; // More conservative for BSC
+        config.gas_adjuster.pricing_formula_parameter_b = 1.0015;
+        config.gas_adjuster.internal_enforced_l1_gas_price = Some(5_000_000_000); // 5 Gwei default
+        config.gas_adjuster.poll_period = Duration::from_secs(3); // Faster polling for 3s blocks
+        
+        // Faster block times require faster polling
+        config.sender.tx_poll_period = Duration::from_millis(500);
+        config.sender.aggregate_tx_poll_period = Duration::from_millis(500);
+        config.watcher.eth_node_poll_interval = Duration::from_millis(500);
+        
+        config
+    }
+
+    /// Create an EthConfig optimized for BSC testnet
+    pub fn for_bsc_testnet() -> Self {
+        let mut config = Self::for_bsc_mainnet();
+        config.l1_network = Some(L1Network::BSCTestnet);
+        
+        // Testnet-specific adjustments
+        config.gas_adjuster.max_l1_gas_price = 50_000_000_000; // 50 Gwei max for testnet
+        config.gas_adjuster.internal_enforced_l1_gas_price = Some(10_000_000_000); // 10 Gwei default
+        config.gas_adjuster.pricing_formula_parameter_a = 1.1; // Slightly higher for testnet reliability
+        
+        config
+    }
+
+    /// Get the L1 network type
+    pub fn get_l1_network(&self) -> Option<L1Network> {
+        self.l1_network
+    }
+
+    /// Check if this is a BSC network
+    pub fn is_bsc_network(&self) -> bool {
+        matches!(self.l1_network, Some(L1Network::BSCMainnet | L1Network::BSCTestnet))
+    }
+
+    /// Get BSC-specific configuration if this is a BSC network
+    pub fn get_bsc_config(&self) -> Option<BSCNetworkConfig> {
+        match self.l1_network? {
+            L1Network::BSCMainnet => Some(BSCNetworkConfig::mainnet()),
+            L1Network::BSCTestnet => Some(BSCNetworkConfig::testnet()),
+            _ => None,
+        }
+    }
+
+    /// Apply BSC-specific optimizations to gas adjuster config
+    pub fn apply_bsc_optimizations(&mut self) {
+        if let Some(network) = self.l1_network {
+            match network {
+                L1Network::BSCMainnet => {
+                    self.gas_adjuster.default_priority_fee_per_gas = 0;
+                    self.gas_adjuster.max_l1_gas_price = 20_000_000_000;
+                    self.gas_adjuster.internal_enforced_l1_gas_price = Some(5_000_000_000);
+                    self.gas_adjuster.poll_period = Duration::from_secs(3);
+                    self.sender.tx_poll_period = Duration::from_millis(500);
+                    self.sender.aggregate_tx_poll_period = Duration::from_millis(500);
+                    self.watcher.eth_node_poll_interval = Duration::from_millis(500);
+                }
+                L1Network::BSCTestnet => {
+                    self.gas_adjuster.default_priority_fee_per_gas = 0;
+                    self.gas_adjuster.max_l1_gas_price = 50_000_000_000;
+                    self.gas_adjuster.internal_enforced_l1_gas_price = Some(10_000_000_000);
+                    self.gas_adjuster.poll_period = Duration::from_secs(3);
+                    self.sender.tx_poll_period = Duration::from_millis(500);
+                    self.sender.aggregate_tx_poll_period = Duration::from_millis(500);
+                    self.watcher.eth_node_poll_interval = Duration::from_millis(500);
+                }
+                _ => {} // No optimizations for other networks
+            }
         }
     }
 
@@ -321,6 +405,7 @@ mod tests {
                 eth_node_poll_interval: Duration::from_millis(300),
                 event_expiration_blocks: 60000,
             },
+            l1_network: Some(L1Network::Localhost),
         }
     }
 

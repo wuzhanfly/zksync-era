@@ -260,6 +260,17 @@ pub(crate) struct ApiMetrics {
     pub ws_open_sessions: Gauge,
     /// Number of currently inserted into DB transactions.
     pub inflight_tx_submissions: Gauge,
+
+    /// BSC-specific API metrics
+    /// Number of BSC API requests
+    pub bsc_api_requests: Counter,
+    /// BSC API response time
+    #[metrics(buckets = Buckets::LATENCIES)]
+    pub bsc_api_response_time: Histogram<Duration>,
+    /// BSC gas price cache hits
+    pub bsc_gas_price_cache_hits: Counter,
+    /// BSC block cache hits
+    pub bsc_block_cache_hits: Counter,
 }
 
 impl ApiMetrics {

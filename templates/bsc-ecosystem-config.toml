@@ -1,0 +1,33 @@
+# BSC + ZKsync Era 生态系统配置模板
+
+[ecosystem]
+name = "{{ecosystem_name}}"
+l1_network = "{{l1_network}}"
+link_to_code = "{{code_path}}"
+chains = ["{{chain_name}}"]
+
+[ecosystem.wallets]
+operator = { path = "{{wallet_path}}" }
+blob_operator = { path = "{{wallet_path}}" }
+
+[ecosystem.config]
+l1_rpc_url = "{{rpc_url}}"
+l1_chain_id = {{l1_chain_id}}
+
+[ecosystem.contracts]
+ecosystem_contracts_path = "{{artifacts_path}}/ecosystem"
+l1_contracts_foundry = true
+l1_contracts_path = "{{artifacts_path}}/l1"
+l2_contracts_path = "{{artifacts_path}}/l2"
+
+[ecosystem.observability]
+enable_grafana_dashboard = {{observability}}
+grafana_dir = "./grafana"
+
+[ecosystem.database]
+database_url = "postgres://postgres:notsecurepassword@localhost:5432/zksync_local"
+database_prover_url = "postgres://postgres:notsecurepassword@localhost:5432/prover_local"
+
+[ecosystem.prover]
+setup_data_path = "./setup-data"
+prometheus_port = 3312

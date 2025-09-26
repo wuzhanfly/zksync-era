@@ -40,3 +40,49 @@ impl ProofDataHandlerMetrics {
 
 #[vise::register]
 pub(super) static METRICS: vise::Global<ProofDataHandlerMetrics> = vise::Global::new();
+
+/// BSC-specific metrics for proof data handling
+#[derive(Debug, Metrics)]
+#[metrics(prefix = "bsc_proof_data_handler")]
+pub(super) struct BSCProofDataHandlerMetrics {
+    /// Number of BSC proofs processed
+    pub bsc_proofs_processed: Counter,
+    /// BSC proof generation time
+    #[metrics(buckets = vise::Buckets::LATENCIES)]
+    pub bsc_proof_generation_time: Histogram<std::time::Duration>,
+    /// BSC proof compression ratio
+    #[metrics(buckets = vise::Buckets::exponential(0.1..=1.0, 1.1))]
+    pub bsc_proof_compression_ratio: Histogram<f64>,
+    /// BSC proof cache hits
+    pub bsc_proof_cache_hits: Counter,
+    /// BSC proof batch processing time
+    #[metrics(buckets = vise::Buckets::LATENCIES)]
+    pub bsc_proof_batch_processing_time: Histogram<std::time::Duration>,
+}
+
+#[vise::register]
+pub(super) static BSC_PROOF_METRICS: vise::Global<BSCProofDataHandlerMetrics> = vise::Global::new();
+
+/// Combined metrics for easy access
+pub(super) struct CombinedMetrics {
+    pub proof_handler: &'static ProofDataHandlerMetrics,
+    pub bsc_proofs_processed: vise::Counter,
+    pub bsc_proof_generation_time: vise::Histogram<std::time::Duration>,
+    pub bsc_proof_compression_ratio: vise::Histogram<f64>,
+    pub bsc_proof_cache_hits: vise::Counter,
+    pub bsc_proof_batch_processing_time: vise::Histogram<std::time::Duration>,
+}
+
+pub(super) static COMBINED_METRICS: std::sync::LazyLock<CombinedMetrics> = std::sync::LazyLock::new(|| {
+    CombinedMetrics {
+        proof_handler: &METRICS,
+        bsc_proofs_processed: BSC_PROOF_METRICS.bsc_proofs_processed,
+        bsc_proof_generation_time: BSC_PROOF_METRICS.bsc_proof_generation_time,
+        bsc_proof_compression_ratio: BSC_PROOF_METRICS.bsc_proof_compression_ratio,
+        bsc_proof_cache_hits: BSC_PROOF_METRICS.bsc_proof_cache_hits,
+        bsc_proof_batch_processing_time: BSC_PROOF_METRICS.bsc_proof_batch_processing_time,
+    }
+});
+
+// Re-export for easier access
+pub(super) use COMBINED_METRICS as BSC_METRICS;

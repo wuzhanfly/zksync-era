@@ -2,6 +2,7 @@
 pub use self::{
     api::ApiConfig,
     base_token_adjuster::BaseTokenAdjusterConfig,
+
     commitment_generator::CommitmentGeneratorConfig,
     consistency_checker::ConsistencyCheckerConfig,
     contract_verifier::ContractVerifierConfig,
@@ -22,6 +23,7 @@ pub use self::{
     gateway_migrator::GatewayMigratorConfig,
     general::{full_config_schema, GeneralConfig},
     genesis::{GenesisConfig, GenesisConfigWrapper},
+    networks::{L1Network, BSCNetworkConfig, NetworksConfig, SharedL1ContractsConfig},
     node_sync::NodeSyncConfig,
     object_store::ObjectStoreConfig,
     observability::{ObservabilityConfig, OpentelemetryConfig},
@@ -40,6 +42,7 @@ pub use self::{
 
 pub mod api;
 pub mod base_token_adjuster;
+
 pub mod chain;
 mod commitment_generator;
 pub mod consensus;

@@ -3,9 +3,9 @@
 pub use crate::{
     configs::{
         contracts::chain::ContractsConfig, full_config_schema, ApiConfig, AvailConfig,
-        BaseTokenAdjusterConfig, CelestiaConfig, ContractVerifierConfig, DAClientConfig,
+        BaseTokenAdjusterConfig, BSCNetworkConfig, CelestiaConfig, ContractVerifierConfig, DAClientConfig,
         DADispatcherConfig, DBConfig, EigenConfig, EthConfig, EthWatchConfig,
-        ExternalProofIntegrationApiConfig, GasAdjusterConfig, GenesisConfig, ObjectStoreConfig,
+        ExternalProofIntegrationApiConfig, GasAdjusterConfig, GenesisConfig, L1Network, NetworksConfig, ObjectStoreConfig,
         PostgresConfig, RemoteENConfig, SnapshotsCreatorConfig,
     },
     repository::{CapturedParams, ConfigRepository},

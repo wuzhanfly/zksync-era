@@ -84,6 +84,8 @@ pub enum ZkStackSubcommands {
     /// Update ZKsync
     #[command(alias = "u")]
     Update(UpdateArgs),
+    /// BSC network setup and configuration
+    BSC(commands::ecosystem::bsc_setup::BSCSetupArgs),
     /// Print markdown help
     #[command(hide = true)]
     Markdown,
@@ -154,6 +156,7 @@ async fn run_subcommand(zkstack_args: ZkStack) -> anyhow::Result<()> {
         ZkStackSubcommands::Consensus(cmd) => cmd.run(&shell).await?,
         ZkStackSubcommands::Portal => commands::portal::run(&shell).await?,
         ZkStackSubcommands::Update(args) => commands::update::run(&shell, args).await?,
+        ZkStackSubcommands::BSC(args) => commands::ecosystem::bsc_setup::run(args, &shell).await?,
         ZkStackSubcommands::Markdown => {
             clap_markdown::print_help_markdown::<ZkStack>();
         }

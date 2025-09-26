@@ -31,6 +31,61 @@ async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Enhanced L1 RPC health check with network validation
+async fn check_l1_rpc_health_with_network(l1_rpc_url: &str, expected_network: L1Network) -> anyhow::Result<()> {
+    let l1_provider = get_ethers_provider(l1_rpc_url)?;
+    let actual_chain_id = l1_provider.get_chainid().await?.as_u64();
+    let expected_chain_id = expected_network.chain_id();
+    
+    if actual_chain_id != expected_chain_id {
+        anyhow::bail!(
+            "Chain ID mismatch: expected {} for {:?}, got {}",
+            expected_chain_id, expected_network, actual_chain_id
+        );
+    }
+    
+    // BSC specific checks
+    if matches!(expected_network, L1Network::BSCMainnet | L1Network::BSCTestnet) {
+        check_bsc_specific_features(&l1_provider).await?;
+    }
+    
+    println!("✅ L1 RPC health check passed - {} chain ID: {}", 
+             expected_network.native_token_symbol(), actual_chain_id);
+    Ok(())
+}
+
+/// BSC specific network feature checks
+async fn check_bsc_specific_features(provider: &ethers::providers::Provider<ethers::providers::Http>) -> anyhow::Result<()> {
+    use ethers::providers::Middleware;
+    
+    // Check latest block
+    let latest_block = provider.get_block_number().await?;
+    println!("📊 BSC latest block: {}", latest_block);
+    
+    // Check gas price
+    let gas_price = provider.get_gas_price().await?;
+    println!("⛽ BSC gas price: {} Gwei", 
+             ethers::utils::format_units(gas_price, "gwei")?);
+    
+    // Verify BSC block time (should be around 3 seconds)
+    if let Ok(latest_block_data) = provider.get_block(latest_block).await {
+        if let Some(block) = latest_block_data {
+            if let Ok(prev_block_data) = provider.get_block(latest_block - 1).await {
+                if let Some(prev_block) = prev_block_data {
+                    let block_time_diff = block.timestamp - prev_block.timestamp;
+                    println!("⏱️  BSC block time: {} seconds", block_time_diff);
+                    
+                    if block_time_diff > ethers::types::U256::from(10) {
+                        println!("⚠️  Warning: Block time seems unusually high for BSC");
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
 pub struct EcosystemArgs {
     /// Path to ecosystem contracts
@@ -65,7 +120,7 @@ impl EcosystemArgs {
 
         // Check L1 RPC health after getting the URL
         println!("🔍 Checking L1 RPC health...");
-        check_l1_rpc_health(&l1_rpc_url).await?;
+        check_l1_rpc_health_with_network(&l1_rpc_url, l1_network).await?;
 
         Ok(EcosystemArgsFinal {
             ecosystem_contracts_path: self.ecosystem_contracts_path,

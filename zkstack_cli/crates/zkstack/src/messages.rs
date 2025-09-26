@@ -205,6 +205,12 @@ pub(super) const MSG_L1_BATCH_COMMIT_DATA_GENERATOR_MODE_PROMPT: &str =
 pub(super) const MSG_WALLET_PATH_PROMPT: &str = "What is the wallet path?";
 pub(super) const MSG_BASE_TOKEN_SELECTION_PROMPT: &str = "Select the base token to use";
 pub(super) const MSG_BASE_TOKEN_ADDRESS_PROMPT: &str = "What is the token address?";
+
+// BSC specific messages
+pub(super) const MSG_BSC_NETWORK_DETECTED: &str = "🌐 BSC network detected";
+pub(super) const MSG_BSC_BNB_RECOMMENDED: &str = "🪙 BNB is recommended as base token for BSC networks";
+pub(super) const MSG_ETH_NETWORK_DETECTED: &str = "🌐 Ethereum network detected";
+pub(super) const MSG_ETH_RECOMMENDED: &str = "🪙 ETH is recommended as base token for Ethereum networks";
 pub(super) const MSG_BASE_TOKEN_PRICE_NOMINATOR_PROMPT: &str =
     "What is the base token price nominator?";
 pub(super) const MSG_BASE_TOKEN_PRICE_DENOMINATOR_PROMPT: &str =

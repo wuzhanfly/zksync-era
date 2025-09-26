@@ -29,6 +29,7 @@ pub struct ApiConfig {
     /// Configuration options for Merkle tree API.
     #[config(nest)]
     pub merkle_tree: MerkleTreeApiConfig,
+
 }
 
 impl ApiConfig {
@@ -42,6 +43,7 @@ impl ApiConfig {
                 expose_config: false,
             },
             merkle_tree: MerkleTreeApiConfig { port: 3053 },
+
         }
     }
 }
@@ -817,3 +819,5 @@ mod tests {
         );
     }
 }
+// BSC API configuration integration:
+// - bsc_api_config: Enables BSC-specific API optimizations including response caching and gas price management

@@ -1,0 +1,46 @@
+# BSC + ZKsync Era 链配置模板
+
+[chain]
+name = "{{chain_name}}"
+chain_id = {{chain_id}}
+prover_mode = "{{prover_mode}}"
+wallet_creation = "{{wallet_creation}}"
+
+[chain.network]
+network = "{{l1_network}}"
+l1_rpc_url = "{{rpc_url}}"
+
+[chain.contracts]
+l1_batch_commit_data_generator_mode = "{{commit_mode}}"
+legacy_bridge = {{legacy_bridge}}
+evm_emulator = {{evm_emulator}}
+
+[chain.database]
+database_url = "postgres://postgres:notsecurepassword@localhost:5432/zksync_local_{{chain_id}}"
+
+[chain.eth_sender]
+sender_proof_sending_mode = "SkipEveryProof"
+sender_proof_loading_mode = "FriProofFromGcs"
+
+[chain.gas_adjuster]
+default_priority_fee_per_gas = 0
+max_base_fee_per_gas = {{max_gas_price}}000000000
+pricing_formula_parameter_a = 3
+pricing_formula_parameter_b = 2
+
+[chain.mempool]
+delay_interval = 100
+remove_stuck_txs = true
+stuck_tx_timeout = 86400
+
+[chain.operations_manager]
+delay_interval = 100
+
+[chain.state_keeper]
+transaction_slots = 8192
+block_commit_deadline_ms = 2500
+miniblock_commit_deadline_ms = 1000
+miniblock_seal_queue_capacity = 10
+
+[chain.house_keeper]
+l1_batch_metrics_reporting_interval_ms = 10000

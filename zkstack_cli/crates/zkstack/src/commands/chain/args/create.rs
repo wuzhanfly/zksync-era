@@ -162,34 +162,57 @@ impl ChainCreateArgs {
             && self.base_token_price_denominator.is_none()
             && self.base_token_price_nominator.is_none()
         {
-            let mut token_selection: Vec<_> =
-                BaseTokenSelection::iter().map(|a| a.to_string()).collect();
+            // Smart default selection based on L1 network
+            let default_token = BaseToken::default_for_l1_network(*l1_network);
+            let should_use_default = match l1_network {
+                L1Network::BSCMainnet | L1Network::BSCTestnet => {
+                    println!("🪙 BSC network detected. BNB is recommended as base token.");
+                    PromptConfirm::new("Use BNB as base token?")
+                        .default(true)
+                        .ask()
+                },
+                L1Network::Mainnet | L1Network::Sepolia | L1Network::Holesky => {
+                    println!("🪙 Ethereum network detected. ETH is recommended as base token.");
+                    PromptConfirm::new("Use ETH as base token?")
+                        .default(true)
+                        .ask()
+                },
+                L1Network::Localhost => false, // Always show selection for localhost
+            };
 
-            let erc20_tokens = &mut (possible_erc20
-                .iter()
-                .map(|t| format!("{:?}", t.address))
-                .collect());
-            token_selection.append(erc20_tokens);
-            let base_token_selection =
-                PromptSelect::new(MSG_BASE_TOKEN_SELECTION_PROMPT, token_selection).ask();
-            match base_token_selection.as_str() {
-                "Eth" => BaseToken::eth(),
-                other => {
-                    let address = if other == "Custom" {
-                        Prompt::new(MSG_BASE_TOKEN_ADDRESS_PROMPT).ask()
-                    } else {
-                        H160::from_str(other)?
-                    };
-                    let nominator = Prompt::new(MSG_BASE_TOKEN_PRICE_NOMINATOR_PROMPT)
-                        .validate_with(number_validator)
-                        .ask();
-                    let denominator = Prompt::new(MSG_BASE_TOKEN_PRICE_DENOMINATOR_PROMPT)
-                        .validate_with(number_validator)
-                        .ask();
-                    BaseToken {
-                        address,
-                        nominator,
-                        denominator,
+            if should_use_default {
+                default_token
+            } else {
+                let mut token_selection: Vec<_> =
+                    BaseTokenSelection::iter().map(|a| a.to_string()).collect();
+
+                let erc20_tokens = &mut (possible_erc20
+                    .iter()
+                    .map(|t| format!("{:?}", t.address))
+                    .collect());
+                token_selection.append(erc20_tokens);
+                let base_token_selection =
+                    PromptSelect::new(MSG_BASE_TOKEN_SELECTION_PROMPT, token_selection).ask();
+                match base_token_selection.as_str() {
+                    "Eth" => BaseToken::eth(),
+                    "Bnb" => BaseToken::bnb(),
+                    other => {
+                        let address = if other == "Custom" {
+                            Prompt::new(MSG_BASE_TOKEN_ADDRESS_PROMPT).ask()
+                        } else {
+                            H160::from_str(other)?
+                        };
+                        let nominator = Prompt::new(MSG_BASE_TOKEN_PRICE_NOMINATOR_PROMPT)
+                            .validate_with(number_validator)
+                            .ask();
+                        let denominator = Prompt::new(MSG_BASE_TOKEN_PRICE_DENOMINATOR_PROMPT)
+                            .validate_with(number_validator)
+                            .ask();
+                        BaseToken {
+                            address,
+                            nominator,
+                            denominator,
+                        }
                     }
                 }
             }
@@ -266,6 +289,7 @@ pub struct ChainCreateArgsFinal {
 #[derive(Debug, Clone, EnumIter, Display, PartialEq, Eq)]
 enum BaseTokenSelection {
     Eth,
+    Bnb,
     Custom,
 }
 

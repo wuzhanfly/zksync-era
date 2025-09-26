@@ -92,6 +92,9 @@ pub async fn deploy_ctm(
         forge = forge.with_slow();
     }
 
+    // Apply network-specific gas strategy
+    forge = forge.with_gas_strategy(config.l1_network);
+
     if let Some(address) = sender {
         forge = forge.with_sender(address);
     } else {
@@ -164,6 +167,9 @@ pub async fn deploy_l1_core_contracts(
         forge = forge.with_slow();
     }
 
+    // Apply network-specific gas strategy
+    forge = forge.with_gas_strategy(config.l1_network);
+
     if let Some(address) = sender {
         forge = forge.with_sender(address);
     } else {
@@ -221,6 +227,9 @@ pub async fn register_ctm_on_existing_bh(
         // It's a kludge for reth, just because it doesn't behave properly with large amount of txs
         forge = forge.with_slow();
     }
+
+    // Apply network-specific gas strategy
+    forge = forge.with_gas_strategy(config.l1_network);
 
     if let Some(address) = sender {
         forge = forge.with_sender(address);

@@ -7,9 +7,14 @@ use crate::commands::ecosystem::args::{
     create::EcosystemCreateArgs,
     init::{EcosystemInitArgs, InitCoreContractsArgs, InitNewCTMArgs, RegisterCTMArgs},
 };
+use crate::commands::ecosystem::bsc_setup::BSCSetupArgs;
 
 pub mod args;
 pub(crate) mod build_transactions;
+pub(crate) mod bsc_checker;
+pub(crate) mod bsc_config_generator;
+pub(crate) mod bsc_setup;
+pub(crate) mod bsc_wizard;
 mod change_default;
 mod common;
 mod create;
@@ -45,6 +50,9 @@ pub enum EcosystemCommands {
     SetupObservability,
     /// Register CTM on Existing Bridgehub
     RegisterCTM(RegisterCTMArgs),
+    /// BSC network setup and configuration wizard
+    #[command(alias = "bsc")]
+    BSCSetup(BSCSetupArgs),
 }
 
 pub(crate) async fn run(shell: &Shell, args: EcosystemCommands) -> anyhow::Result<()> {
@@ -57,5 +65,6 @@ pub(crate) async fn run(shell: &Shell, args: EcosystemCommands) -> anyhow::Resul
         EcosystemCommands::ChangeDefaultChain(args) => change_default::run(args, shell),
         EcosystemCommands::SetupObservability => setup_observability::run(shell),
         EcosystemCommands::RegisterCTM(args) => register_ctm::run(args, shell).await,
+        EcosystemCommands::BSCSetup(args) => bsc_setup::run(args, shell).await,
     }
 }

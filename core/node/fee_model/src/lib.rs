@@ -9,8 +9,11 @@ use zksync_types::fee_model::{
 
 use crate::l1_gas_price::GasAdjuster;
 
+pub mod bsc_fee_model;
 pub mod l1_gas_price;
 pub mod node;
+
+pub use bsc_fee_model::{BSCFeeModelProvider, BSCFeeModelConfig, BSCNetworkStatus, BSCCongestionDetector};
 
 /// Trait responsible for providing numerator and denominator for adjusting gas price that is denominated
 /// in a non-eth base token

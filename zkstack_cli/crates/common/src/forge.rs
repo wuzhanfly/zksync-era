@@ -155,6 +155,55 @@ impl ForgeScript {
         self
     }
 
+    pub fn with_gas_price(mut self, gas_price_gwei: u64) -> Self {
+        self.args.add_arg(ForgeScriptArg::GasPrice {
+            gas_price: format!("{}gwei", gas_price_gwei),
+        });
+        self
+    }
+
+    pub fn with_priority_gas_price(mut self, priority_gas_price_gwei: u64) -> Self {
+        self.args.add_arg(ForgeScriptArg::PriorityGasPrice {
+            priority_gas_price: format!("{}gwei", priority_gas_price_gwei),
+        });
+        self
+    }
+
+    pub fn with_legacy_tx(mut self) -> Self {
+        self.args.add_arg(ForgeScriptArg::Legacy);
+        self
+    }
+
+    /// Apply gas strategy based on L1 network configuration
+    pub fn with_gas_strategy(mut self, l1_network: zkstack_cli_types::L1Network) -> Self {
+        let gas_strategy = l1_network.gas_strategy();
+        
+        // Set gas price based on strategy type
+        match gas_strategy.strategy_type {
+            zkstack_cli_types::GasStrategyType::Fixed | 
+            zkstack_cli_types::GasStrategyType::Legacy => {
+                self = self.with_gas_price(gas_strategy.base_gas_price_gwei);
+                self = self.with_legacy_tx();
+            },
+            zkstack_cli_types::GasStrategyType::EIP1559 => {
+                self = self.with_gas_price(gas_strategy.base_gas_price_gwei);
+                if let Some(priority_fee) = gas_strategy.priority_fee_gwei {
+                    self = self.with_priority_gas_price(priority_fee);
+                }
+            },
+        }
+        
+        self
+    }
+
+    /// Apply BSC-specific optimizations
+    pub fn with_bsc_optimizations(mut self) -> Self {
+        // BSC-specific optimizations
+        self = self.with_legacy_tx(); // BSC doesn't support EIP-1559
+        self = self.with_gas_price(5); // Conservative 5 Gwei for BSC
+        self
+    }
+
     /// Makes sure a transaction is sent, only after its previous one has been confirmed and succeeded.
     pub fn with_slow(mut self) -> Self {
         self.args.add_arg(ForgeScriptArg::Slow);
@@ -284,6 +333,16 @@ pub enum ForgeScriptArg {
     GasLimit {
         gas_limit: u64,
     },
+    #[strum(to_string = "gas-price={gas_price}")]
+    GasPrice {
+        gas_price: String, // In wei or with unit suffix (e.g., "5gwei")
+    },
+    #[strum(to_string = "priority-gas-price={priority_gas_price}")]
+    PriorityGasPrice {
+        priority_gas_price: String, // For EIP-1559 transactions
+    },
+    #[strum(to_string = "legacy")]
+    Legacy, // Force legacy transaction type (pre-EIP1559)
     Zksync,
     #[strum(to_string = "skip={skip_path}")]
     Skip {
