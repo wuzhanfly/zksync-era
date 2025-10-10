@@ -373,6 +373,8 @@ async fn accept_ownership(
     mut forge: ForgeScript,
 ) -> anyhow::Result<()> {
     forge = fill_forge_private_key(forge, Some(governor), WalletOwner::Governor)?;
+    // Use the old function for now - network inference from RPC URL in forge script
+
     check_the_balance(&forge).await?;
     let spinner = Spinner::new(MSG_ACCEPTING_GOVERNANCE_SPINNER);
     forge.run(shell)?;

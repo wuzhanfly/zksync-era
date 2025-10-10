@@ -47,6 +47,12 @@ pub struct Output {
     eth_watch: EthWatch,
 }
 
+impl Output {
+    pub fn new(eth_watch: EthWatch) -> Self {
+        Self { eth_watch }
+    }
+}
+
 impl EthWatchLayer {
     pub fn new(eth_watch_config: EthWatchConfig, chain_id: L2ChainId) -> Self {
         Self {
@@ -129,7 +135,7 @@ impl WiringLayer for EthWatchLayer {
             self.chain_id,
             self.eth_watch_config.event_expiration_blocks,
         )
-        .await?;
+            .await?;
 
         Ok(Output { eth_watch })
     }

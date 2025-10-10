@@ -1,0 +1,57 @@
+# BSC 优化的状态管理配置
+# 针对 BSC 的 3 秒出块时间和低成本特性优化
+
+[state_keeper]
+# BSC 快速批次提交策略
+batch_commit_interval = 10000  # 10 秒提交间隔 (vs 以太坊的 5 分钟)
+max_batch_size = 200          # 较小批次，更频繁提交
+max_batch_wait_time = 15000   # 最多等待 15 秒
+
+# BSC 优化的交易处理
+transaction_slots = 500                    # 增加交易槽位
+max_gas_per_batch = 300000000             # 300M gas per batch
+max_pubdata_per_batch = 150000            # 150KB pubdata per batch
+
+# BSC 快速状态更新
+enable_fast_batching = true               # 启用快速批次模式
+parallel_batch_count = 3                 # 3 个并行批次处理
+enable_optimized_state_updates = true    # 优化状态更新
+
+# BSC 内存池优化
+[state_keeper.mempool]
+delay_interval = 50                       # 50ms 内存池延迟
+capacity = 10000                          # 增加内存池容量
+stuck_tx_timeout = 30000                  # 30 秒卡住交易超时
+remove_stuck_txs = true                   # 自动移除卡住的交易
+
+# BSC 费用模型优化
+[state_keeper.fee_model]
+minimal_l2_gas_price = 5000000            # 0.005 Gwei 最小 L2 gas 价格
+batch_overhead_l1_gas = 80000             # 大幅降低批次开销
+max_gas_per_pubdata_byte = 800            # 优化 pubdata gas 成本
+
+# BSC 验证优化
+[state_keeper.validation]
+computational_gas_limit = 300000000       # 300M 计算 gas 限制
+max_circuits_per_batch = 24000            # 增加每批次电路数量
+geometry_config = "BSC_OPTIMIZED"         # BSC 优化的几何配置
+
+# BSC 存储优化
+[state_keeper.storage]
+enable_storage_caching = true             # 启用存储缓存
+cache_size_mb = 512                       # 512MB 缓存大小
+enable_parallel_storage_access = true    # 并行存储访问
+storage_write_batch_size = 1000           # 批量写入大小
+
+# BSC 性能监控
+[state_keeper.monitoring]
+enable_detailed_metrics = true           # 启用详细指标
+metrics_push_interval = 30000            # 30 秒指标推送间隔
+enable_performance_profiling = false     # 性能分析（生产环境关闭）
+
+# BSC 错误处理
+[state_keeper.error_handling]
+max_retries = 5                          # 最大重试次数
+retry_backoff_base_ms = 1000             # 1 秒基础退避时间
+retry_backoff_max_ms = 10000             # 10 秒最大退避时间
+enable_auto_recovery = true              # 启用自动恢复

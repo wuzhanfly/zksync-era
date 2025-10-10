@@ -14,6 +14,7 @@ use zksync_types::{
 };
 
 pub use self::client::{EthClient, EthHttpQueryClient, GetLogsClient, ZkSyncExtentionEthClient};
+
 use self::{
     client::RETRY_LIMIT,
     event_processors::{
@@ -199,7 +200,7 @@ impl EthWatch {
             } else {
                 client.confirmed_block_number().await
             }
-            .map_err(EventProcessorError::client)?;
+                .map_err(EventProcessorError::client)?;
 
             let from_block = storage
                 .eth_watcher_dal()
@@ -211,6 +212,22 @@ impl EthWatch {
                 .await
                 .map_err(DalError::generalize)
                 .map_err(EventProcessorError::internal)?;
+
+            // BSC network range limit: enforce maximum 2000 blocks per query
+            // This ensures we gradually catch up to the target block height
+            let original_to_block = to_block;
+            let mut to_block = to_block;
+            if chain_id.0 == 56 || chain_id.0 == 97 { // BSC Mainnet or Testnet
+                let max_range = 2000u64;
+                let current_range = to_block.saturating_sub(from_block);
+                if current_range > max_range {
+                    to_block = from_block + max_range;
+                    tracing::info!(
+                        "BSC progressive sync: processing {} blocks (from {} to {}), {} blocks remaining to reach {}",
+                        max_range, from_block, to_block, original_to_block.saturating_sub(to_block), original_to_block
+                    );
+                }
+            }
 
             // There are no new blocks so there is nothing to be done
             if from_block > to_block {

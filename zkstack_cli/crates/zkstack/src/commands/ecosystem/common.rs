@@ -29,7 +29,7 @@ use super::args::init::EcosystemInitArgsFinal;
 use crate::{
     commands::chain::{self},
     messages::{msg_chain_load_err, msg_initializing_chain, MSG_DEPLOYING_ERC20_SPINNER},
-    utils::forge::{check_the_balance, fill_forge_private_key, WalletOwner},
+    utils::forge::{check_the_balance_with_network, fill_forge_private_key, WalletOwner},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -91,7 +91,7 @@ pub async fn deploy_l1_core_contracts(
 
     if broadcast {
         forge = forge.with_broadcast();
-        check_the_balance(&forge).await?;
+        check_the_balance_with_network(&forge, Some(config.l1_network)).await?;
     }
 
     forge.run(shell)?;
@@ -144,7 +144,7 @@ pub async fn deploy_erc20(
     )?;
 
     let spinner = Spinner::new(MSG_DEPLOYING_ERC20_SPINNER);
-    check_the_balance(&forge).await?;
+    check_the_balance_with_network(&forge, Some(ecosystem_config.l1_network)).await?;
     forge.run(shell)?;
     spinner.finish();
 

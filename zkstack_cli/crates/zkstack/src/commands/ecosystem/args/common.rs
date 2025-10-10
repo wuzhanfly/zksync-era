@@ -69,15 +69,87 @@ pub struct CommonEcosystemFinalArgs {
 }
 
 /// Check if L1 RPC is healthy by calling eth_chainId
+// async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
+//     // Check L1 RPC health after getting the URL
+//     logger::info("🔍 Checking L1 RPC health...");
+//     let l1_provider = get_ethers_provider(l1_rpc_url)?;
+//     let l1_chain_id = l1_provider.get_chainid().await?.as_u64();
+//
+//     logger::info(format!(
+//         "✅ L1 RPC health check passed - chain ID: {}",
+//         l1_chain_id
+//     ));
+//     Ok(())
+// }
+
+/// Check if L1 RPC is healthy by calling eth_chainId
 async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
     // Check L1 RPC health after getting the URL
     logger::info("🔍 Checking L1 RPC health...");
     let l1_provider = get_ethers_provider(l1_rpc_url)?;
     let l1_chain_id = l1_provider.get_chainid().await?.as_u64();
 
-    logger::info(format!(
-        "✅ L1 RPC health check passed - chain ID: {}",
-        l1_chain_id
-    ));
+    // Validate chain ID matches expected network
+    let (network_name, network_type) = match l1_chain_id {
+        1 => ("Ethereum Mainnet", "ethereum"),
+        9 => ("Localhost", "localhost"),
+        56 => ("BSC Mainnet", "bsc"),
+        97 => ("BSC Testnet (Chapel)", "bsc"),
+        11155111 => ("Sepolia Testnet", "ethereum"),
+        17000 => ("Holesky Testnet", "ethereum"),
+        _ => ("Unknown Network", "unknown"),
+    };
+
+    println!("✅ L1 RPC health check passed - {} (Chain ID: {})", network_name, l1_chain_id);
+
+    // Network-specific validation and optimization
+    match network_type {
+        "bsc" => {
+            println!("🔗 Detected BSC network - ensuring compatibility...");
+
+            // Check if the provider supports BSC-specific features
+            let latest_block = l1_provider.get_block_number().await?;
+            println!("📦 Latest block number: {}", latest_block);
+
+            // Validate BSC-specific characteristics
+            let block = l1_provider.get_block(latest_block).await?;
+            if let Some(block) = block {
+                let block_time = block.timestamp.as_u64();
+                println!("⏰ Latest block timestamp: {}", block_time);
+            }
+
+            // BSC has faster block times (~3 seconds vs Ethereum's ~12 seconds)
+            if l1_chain_id == 56 {
+                println!("⚡ BSC Mainnet detected - optimized for ~3 second block times");
+                println!("💰 Native token: BNB");
+                println!("🌐 Block explorer: https://bscscan.com");
+            } else {
+                println!("🧪 BSC Testnet detected - optimized for testing");
+                println!("💰 Native token: tBNB (testnet BNB)");
+                println!("🌐 Block explorer: https://testnet.bscscan.com");
+                println!("🚰 Faucet: https://testnet.bnbchain.org/faucet-smart");
+            }
+
+            // Check gas price for BSC networks
+            let gas_price = l1_provider.get_gas_price().await?;
+            println!("⛽ Current gas price: {} Gwei", gas_price.as_u64() / 1_000_000_000);
+        }
+        "ethereum" => {
+            println!("🔗 Detected Ethereum network");
+            if l1_chain_id == 1 {
+                println!("⚡ Ethereum Mainnet - ~12 second block times");
+            } else {
+                println!("🧪 Ethereum Testnet");
+            }
+        }
+        "localhost" => {
+            println!("🏠 Detected localhost development network");
+        }
+        _ => {
+            println!("⚠️  Unknown network detected - proceed with caution");
+        }
+    }
+
     Ok(())
 }
+

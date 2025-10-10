@@ -1,0 +1,40 @@
+{
+  "nodeType": "hyperchain",
+  "hyperchainsConfig": [
+    {
+      "network": {
+        "id": 9701,
+        "key": "bsc_test_chain",
+        "name": "bsc_test_chain",
+        "rpcUrl": "http://127.0.0.1:3050/",
+        "l1Network": {
+          "id": 97,
+          "name": "bsc-testnet",
+          "network": "bsc-testnet",
+          "nativeCurrency": {
+            "name": "Test BNB",
+            "symbol": "tBNB",
+            "decimals": 18
+          },
+          "rpcUrls": {
+            "default": {
+              "http": ["https://bsc-testnet-dataseed.bnbchain.org"]
+            },
+            "public": {
+              "http": ["https://bsc-testnet-dataseed.bnbchain.org"]
+            }
+          }
+        }
+      },
+      "tokens": [
+        {
+          "address": "0x000000000000000000000000000000000000800A",
+          "symbol": "ETH",
+          "decimals": 18,
+          "l1Address": "0x0000000000000000000000000000000000000000",
+          "name": "Ether"
+        }
+      ]
+    }
+  ]
+}

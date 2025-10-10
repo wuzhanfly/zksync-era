@@ -17,7 +17,7 @@ pub const EXPLORER_APP_DOCKER_CONFIG_PATH: &str = "/usr/src/app/packages/app/dis
 /// Docker image for the explorer app
 pub const EXPLORER_APP_DOCKER_IMAGE: &str = "matterlabs/block-explorer-app";
 /// Image tag for the explorer app
-pub const EXPLORER_APP_DOCKER_IMAGE_TAG: &str = "v2.73.1";
+pub const EXPLORER_APP_DOCKER_IMAGE_TAG: &str = "v2.92.0-zksync-os.12";
 /// Image tag for the explorer app for prividium
 pub const EXPLORER_APP_PRIVIDIUM_DOCKER_IMAGE_TAG: &str = "v2.75.0-prividium.1";
 /// Path to the JS runtime config for the dapp-portal docker container to be mounted to
