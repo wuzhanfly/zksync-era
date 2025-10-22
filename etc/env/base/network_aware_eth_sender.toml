@@ -1,0 +1,51 @@
+# Network-aware ETH Sender configuration
+# This configuration automatically optimizes eth_sender behavior based on the L1 network type
+
+[network_aware_eth_sender]
+
+# Network detection settings
+[network_aware_eth_sender.network_detection]
+# Enable automatic network detection based on L1 chain ID
+enabled = true
+# Fallback to Ethereum configuration for unknown networks
+fallback_to_ethereum = true
+
+# Ethereum-specific configuration (maintains existing behavior)
+[network_aware_eth_sender.ethereum]
+# Number of confirmations to wait for (Ethereum standard)
+wait_confirmations = 12
+# Maximum number of transactions in flight (conservative)
+max_txs_in_flight = 10
+# Transaction polling period (standard)
+tx_poll_period = "5s"
+# Aggregate transaction polling period (standard)
+aggregate_tx_poll_period = "5s"
+# Maximum acceptable priority fee in Gwei (Ethereum mainnet safe limit)
+max_acceptable_priority_fee_in_gwei = 100
+# Gas price scale factor for retries (conservative)
+gas_price_scale_factor = 1.5
+# Maximum number of retries
+max_retries = 5
+
+# BSC-specific configuration (optimized for 3-second block times)
+[network_aware_eth_sender.bsc]
+# Number of confirmations to wait for (BSC optimized: ~6 seconds)
+wait_confirmations = 2
+# Maximum number of transactions in flight (higher throughput)
+max_txs_in_flight = 20
+# Transaction polling period (faster polling for 3s blocks)
+tx_poll_period = "2s"
+# Aggregate transaction polling period (aggressive aggregation)
+aggregate_tx_poll_period = "1s"
+# Maximum acceptable priority fee in Gwei (BSC has lower gas costs)
+max_acceptable_priority_fee_in_gwei = 20
+# Gas price scale factor for retries (gentler scaling due to stable gas prices)
+gas_price_scale_factor = 1.2
+# Maximum number of retries (more retries due to faster blocks)
+max_retries = 8
+# Enable aggressive batching for high throughput
+enable_aggressive_batching = true
+# Enable fast confirmation mode
+fast_confirmation_mode = true
+# Number of parallel batch workers
+parallel_batch_workers = 4

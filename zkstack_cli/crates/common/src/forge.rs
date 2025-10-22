@@ -62,9 +62,16 @@ impl ForgeScript {
             let skip_path: String = String::from("contracts/bridgehub/*");
             self.args.add_arg(ForgeScriptArg::Skip { skip_path });
         }
+
+        // Add timeout argument
+        self.args.add_arg(ForgeScriptArg::Timeout {
+            timeout: self.args.timeout,
+        });
+
         let _dir_guard = shell.push_dir(&self.base_path);
         let script_path = self.script_path.as_os_str();
         let args_no_resume = self.args.build();
+
         if self.args.resume {
             let mut args = args_no_resume.clone();
             args.push(ForgeScriptArg::Resume.to_string());
@@ -86,21 +93,57 @@ impl ForgeScript {
 
         println!("Command: {}", command);
 
-        let mut cmd = Cmd::new(cmd!(
-            shell,
-            "forge script {script_path} --legacy {args_no_resume...}"
-        ));
+        // Retry logic for network errors
+        let max_retries = self.args.retries;
+        let mut last_error: Option<String> = None;
 
-        if self.args.resume {
-            cmd = cmd.with_piped_std_err();
+        for attempt in 0..=max_retries {
+            if attempt > 0 {
+                println!("🔄 Retry attempt {} of {}", attempt, max_retries);
+                std::thread::sleep(std::time::Duration::from_secs(2_u64.pow(attempt - 1))); // Exponential backoff
+            }
+
+            // Clone args_no_resume for each attempt
+            let args_clone = args_no_resume.clone();
+            let mut cmd = Cmd::new(cmd!(
+                shell,
+                "forge script {script_path} --legacy {args_clone...}"
+            ));
+
+            if self.args.resume {
+                cmd = cmd.with_piped_std_err();
+            }
+
+            let res = cmd.run();
+
+            // Check for proposal error first (this is not a retry-able error)
+            if res.proposal_error() {
+                return Ok(());
+            }
+
+            match res {
+                Ok(_) => return Ok(()),
+                Err(e) => {
+                    // Check if this is a network-related error that should be retried
+                    if should_retry_error(&e) && attempt < max_retries {
+                        println!("⚠️  Network error detected: {}", e);
+                        println!("🔄 Will retry in {} seconds...", 2_u64.pow(attempt));
+                        last_error = Some(e.to_string());
+                        continue;
+                    } else {
+                        // Either not a retry-able error or max retries reached
+                        return Err(anyhow::anyhow!("Command failed: {}", e));
+                    }
+                }
+            }
         }
 
-        let res = cmd.run();
-        // We won't catch this error if resume is not set.
-        if res.proposal_error() {
-            return Ok(());
+        // If we get here, all retries failed
+        if let Some(error) = last_error {
+            return Err(anyhow::anyhow!("All {} retry attempts failed. Last error: {}", max_retries, error));
         }
-        Ok(res?)
+
+        Ok(())
     }
 
     pub fn wallet_args_passed(&self) -> bool {
@@ -207,6 +250,18 @@ impl ForgeScript {
         let balance = client.get_balance(client.address(), None).await?;
         Ok(Some(balance))
     }
+
+    /// Set timeout for RPC requests
+    pub fn with_timeout(mut self, timeout: u64) -> Self {
+        self.args.with_timeout(timeout);
+        self
+    }
+
+    /// Set number of retries for failed requests
+    pub fn with_retries(mut self, retries: u32) -> Self {
+        self.args.with_retries(retries);
+        self
+    }
 }
 
 const PROHIBITED_ARGS: [&str; 10] = [
@@ -289,6 +344,10 @@ pub enum ForgeScriptArg {
     Skip {
         skip_path: String,
     },
+    #[strum(to_string = "timeout={timeout}")]
+    Timeout {
+        timeout: u64,
+    },
 }
 
 /// ForgeScriptArgs is a set of arguments that can be passed to the forge script command.
@@ -314,6 +373,12 @@ pub struct ForgeScriptArgs {
     pub resume: bool,
     #[clap(long)]
     pub zksync: bool,
+    /// Timeout for RPC requests in seconds
+    #[clap(long, default_value = "300")]
+    pub timeout: u64,
+    /// Number of retries for failed requests
+    #[clap(long, default_value = "3")]
+    pub retries: u32,
     /// List of additional arguments that can be passed through the CLI.
     ///
     /// e.g.: `zkstack init -a --private-key=<PRIVATE_KEY>`
@@ -429,6 +494,16 @@ impl ForgeScriptArgs {
     pub fn with_zksync(&mut self) {
         self.zksync = true;
     }
+
+    /// Set timeout for RPC requests
+    pub fn with_timeout(&mut self, timeout: u64) {
+        self.timeout = timeout;
+    }
+
+    /// Set number of retries for failed requests
+    pub fn with_retries(&mut self, retries: u32) {
+        self.retries = retries;
+    }
 }
 
 #[derive(Debug, Clone, ValueEnum, Display, Serialize, Deserialize, Default)]
@@ -471,4 +546,51 @@ fn check_error(cmd_result: &CmdResult<()>, error_text: &str) -> bool {
         }
     }
     false
+}
+
+/// Check if an error should trigger a retry
+fn should_retry_error(error: &crate::cmd::CmdError) -> bool {
+    let error_str = error.to_string().to_lowercase();
+
+    // Network-related errors that should be retried
+    let retry_patterns = [
+        "error sending request for url",
+        "connection refused",
+        "connection reset",
+        "timeout",
+        "network is unreachable",
+        "temporary failure in name resolution",
+        "could not resolve host",
+        "operation timed out",
+        "connection timed out",
+        "read timeout",
+        "write timeout",
+        "broken pipe",
+        "connection aborted",
+        "no route to host",
+        "network unreachable",
+        "too many requests",
+        "rate limit",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "internal server error",
+        "request timeout",
+        "connection error",
+        "socket error",
+        "dns error",
+        "ssl error",
+        "tls error",
+        "certificate error",
+        "handshake timeout",
+        "connection pool timeout",
+        "connection dropped",
+        "unexpected eof",
+        "early eof",
+        "incomplete message",
+        "invalid response",
+        "malformed response",
+    ];
+
+    retry_patterns.iter().any(|pattern| error_str.contains(pattern))
 }

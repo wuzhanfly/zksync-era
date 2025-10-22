@@ -46,7 +46,11 @@ pub struct Output {
     #[context(task)]
     eth_watch: EthWatch,
 }
-
+impl Output {
+    pub fn new(eth_watch: EthWatch) -> Self {
+        Self { eth_watch }
+    }
+}
 impl EthWatchLayer {
     pub fn new(eth_watch_config: EthWatchConfig, chain_id: L2ChainId) -> Self {
         Self {

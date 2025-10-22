@@ -1,0 +1,155 @@
+# BSC 优化的费用模型配置
+# 这是实现 BSC 成本优势的核心配置文件
+
+[fee_model]
+# 使用 V2 费用模型以获得最大灵活性
+version = "V2"
+
+# BSC 优化的核心参数
+[fee_model.bsc_optimized]
+
+# 1. L1 Gas 成本优化 (最重要的优化)
+# BSC 的 gas 成本比以太坊低 10-20 倍
+l1_gas_price_scale_factor = 0.1  # BSC gas 价格是以太坊的 10%
+
+# 2. 批次开销优化 (直接影响用户费用)
+# 这个参数直接决定了分摊到每笔 L2 交易的固定成本
+diamond_init_batch_overhead_l1_gas = 80000  # 以太坊: ~800000, BSC: ~80000 (降低 90%)
+
+# 3. Pubdata 成本优化
+# BSC 的 calldata 成本远低于以太坊
+l1_pubdata_price_scale_factor = 0.15  # BSC pubdata 成本是以太坊的 15%
+
+# 4. 最小 L2 Gas 价格优化
+# 根据 BNB 价格和运营成本重新计算
+minimal_l2_gas_price_wei = 5000000  # 0.005 Gwei (以太坊通常是 0.1 Gwei)
+
+# 5. 动态费用调整参数
+dynamic_fee_adjustment = {
+    enabled = true,
+    
+    # 基于网络拥堵的费用调整
+    congestion_multiplier_low = 0.8,    # 网络空闲时降低费用
+    congestion_multiplier_medium = 1.0, # 正常网络负载
+    congestion_multiplier_high = 1.5,   # 网络拥堵时提高费用
+    
+    # 基于 L1 gas 价格的费用调整
+    l1_gas_price_threshold_low = 3000000000,   # 3 Gwei
+    l1_gas_price_threshold_high = 10000000000, # 10 Gwei
+    
+    # 费用调整频率
+    adjustment_interval_blocks = 10,
+    max_adjustment_per_interval = 0.1  # 每次最多调整 10%
+}
+
+# 6. BSC 特定的经济参数
+[fee_model.bsc_economics]
+
+# BNB 相对于 ETH 的价格比率 (用于费用计算)
+bnb_eth_price_ratio = 0.15  # BNB 通常是 ETH 价格的 10-20%
+
+# BSC 网络的目标利润率
+target_profit_margin = 0.2  # 20% 利润率
+
+# 运营成本参数 (每月，以 USD 计算)
+monthly_operational_costs = {
+    server_costs = 1000,      # 服务器成本
+    bandwidth_costs = 500,    # 带宽成本
+    storage_costs = 300,      # 存储成本
+    monitoring_costs = 200,   # 监控成本
+    total = 2000
+}
+
+# 预期交易量 (用于成本分摊)
+expected_monthly_transactions = 1000000  # 每月 100 万笔交易
+
+# 7. 费用组件详细配置
+[fee_model.components]
+
+# L2 计算费用 (证明生成成本)
+l2_computation_fee = {
+    base_cost_per_gas = 1,  # 每 gas 的基础成本 (wei)
+    proving_cost_multiplier = 0.5,  # BSC 上证明成本更低
+}
+
+# L1 提交费用 (状态提交到 BSC 的成本)
+l1_commit_fee = {
+    base_commit_cost = 50000,  # 基础提交成本 (gas)
+    per_byte_cost = 16,        # 每字节 calldata 成本 (gas)
+    blob_cost_multiplier = 0.8 # Blob 成本乘数 (如果使用 blob)
+}
+
+# 存储费用 (状态存储成本)
+storage_fee = {
+    per_slot_cost = 20000,     # 每个存储槽成本 (gas)
+    refund_multiplier = 0.5    # 存储退款乘数
+}
+
+# 8. 费用预测和优化
+[fee_model.optimization]
+
+# 费用预测算法
+fee_prediction = {
+    enabled = true,
+    prediction_window_blocks = 100,  # 预测窗口
+    confidence_threshold = 0.8       # 置信度阈值
+}
+
+# 自动费用优化
+auto_optimization = {
+    enabled = true,
+    optimization_interval_hours = 24,  # 每 24 小时优化一次
+    max_fee_change_per_optimization = 0.05  # 每次最多改变 5%
+}
+
+# 用户费用体验优化
+user_experience = {
+    # 为小额交易提供费用补贴
+    small_tx_subsidy_enabled = true,
+    small_tx_threshold_usd = 1.0,     # 小于 1 USD 的交易
+    subsidy_percentage = 0.5,         # 补贴 50% 的费用
+    
+    # 批量交易费用折扣
+    batch_discount_enabled = true,
+    batch_size_threshold = 10,        # 10 笔以上交易
+    batch_discount_percentage = 0.1   # 10% 折扣
+}
+
+# 9. 监控和告警
+[fee_model.monitoring]
+
+# 费用监控指标
+metrics = {
+    average_tx_fee_usd = { target = 0.01, tolerance = 0.005 },  # 目标: 1 美分
+    fee_volatility = { max_daily_change = 0.2 },                # 每日费用变化不超过 20%
+    user_satisfaction = { min_completion_rate = 0.95 }          # 95% 的交易成功率
+}
+
+# 告警配置
+alerts = {
+    high_fee_threshold_usd = 0.05,     # 费用超过 5 美分时告警
+    low_profit_margin_threshold = 0.1, # 利润率低于 10% 时告警
+    network_congestion_threshold = 0.8  # 网络拥堵超过 80% 时告警
+}
+
+# 10. A/B 测试配置
+[fee_model.ab_testing]
+
+# 费用策略 A/B 测试
+enabled = true
+test_duration_hours = 168  # 7 天测试周期
+
+# 测试策略
+strategies = [
+    { name = "conservative", fee_multiplier = 0.8 },
+    { name = "aggressive", fee_multiplier = 1.2 },
+    { name = "dynamic", fee_multiplier = "auto" }
+]
+
+# 测试指标
+success_metrics = [
+    "transaction_volume",
+    "user_retention", 
+    "profit_margin",
+    "network_utilization"
+]

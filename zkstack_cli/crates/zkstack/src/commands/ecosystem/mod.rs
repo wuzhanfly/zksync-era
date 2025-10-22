@@ -16,6 +16,10 @@ use crate::{
 
 pub mod args;
 pub(crate) mod build_transactions;
+pub(crate) mod bsc_commands;
+pub(crate) mod bsc_fee_calculator;
+pub(crate) mod bsc_monitor;
+pub(crate) mod bsc_utils;
 mod change_default;
 mod common;
 mod create;
@@ -47,6 +51,9 @@ pub enum EcosystemCommands {
     SetupObservability,
     /// Register a new CTM on an existing BridgeHub. CTM must be already deployed.(ctm init command)
     RegisterCTM(RegisterCTMArgs),
+    /// BSC network related commands
+    #[command(subcommand)]
+    Bsc(bsc_commands::BscCommands),
 }
 
 pub(crate) async fn run(shell: &Shell, args: EcosystemCommands) -> anyhow::Result<()> {
@@ -75,6 +82,8 @@ pub(crate) async fn run(shell: &Shell, args: EcosystemCommands) -> anyhow::Resul
         EcosystemCommands::ChangeDefaultChain(args) => change_default::run(args, shell),
         EcosystemCommands::SetupObservability => setup_observability::run(shell),
         EcosystemCommands::RegisterCTM(args) => register_ctm::run(args, shell).await,
+        EcosystemCommands::Bsc(args) => bsc_commands::run(shell, args.clone()).await,
+
     }
 }
 
@@ -88,6 +97,7 @@ impl EcosystemCommands {
             EcosystemCommands::Init(args) => args.common.update_submodules,
             EcosystemCommands::InitCoreContracts(args) => args.common.update_submodules,
             EcosystemCommands::RegisterCTM(args) => args.common.update_submodules,
+            EcosystemCommands::Bsc(_) => false,
         }
     }
 
@@ -104,6 +114,7 @@ impl EcosystemCommands {
                 !args.common.skip_contract_compilation_override
             }
             EcosystemCommands::RegisterCTM(args) => !args.common.skip_contract_compilation_override,
+            EcosystemCommands::Bsc(_) => false,
         }
     }
 
@@ -117,6 +128,7 @@ impl EcosystemCommands {
             EcosystemCommands::Init(args) => args.common.vm_option(),
             EcosystemCommands::InitCoreContracts(args) => args.common.vm_option(),
             EcosystemCommands::RegisterCTM(args) => args.common.vm_option(),
+            EcosystemCommands::Bsc(_) => VMOption::default(),
         }
     }
 }

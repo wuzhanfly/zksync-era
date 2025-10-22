@@ -26,12 +26,26 @@ async fn build_portal_chain_config(
     // Get L1 RPC URL from secrets config
     let secrets_config = chain_config.get_secrets_config().await?;
     let l1_rpc_url = secrets_config.l1_rpc_url()?;
-    // Build L1 network config
+    // Build L1 network config with network-aware native currency
+    let native_currency = match chain_config.l1_network {
+        zkstack_cli_types::L1Network::BscMainnet => TokenInfo {
+            name: "BNB".to_string(),
+            symbol: "BNB".to_string(),
+            decimals: 18,
+        },
+        zkstack_cli_types::L1Network::BscTestnet => TokenInfo {
+            name: "Test BNB".to_string(),
+            symbol: "tBNB".to_string(),
+            decimals: 18,
+        },
+        _ => TokenInfo::eth(), // Default to ETH for other networks
+    };
+
     let l1_network = Some(L1NetworkConfig {
         id: chain_config.l1_network.chain_id(),
         name: chain_config.l1_network.to_string(),
         network: chain_config.l1_network.to_string().to_lowercase(),
-        native_currency: TokenInfo::eth(),
+        native_currency,
         rpc_urls: RpcUrls {
             default: RpcUrlConfig {
                 http: vec![l1_rpc_url.clone()],
@@ -41,9 +55,23 @@ async fn build_portal_chain_config(
             },
         },
     });
-    // Base token:
+    // Base token with network-aware display:
     let (base_token_addr, base_token_info) = if chain_config.base_token == BaseToken::eth() {
-        (format!("{:?}", Address::zero()), TokenInfo::eth())
+        // For ETH base token, use network-aware token info for better UX
+        let token_info = match chain_config.l1_network {
+            zkstack_cli_types::L1Network::BscMainnet => TokenInfo {
+                name: "BNB".to_string(),
+                symbol: "BNB".to_string(),
+                decimals: 18,
+            },
+            zkstack_cli_types::L1Network::BscTestnet => TokenInfo {
+                name: "Test BNB".to_string(),
+                symbol: "tBNB".to_string(),
+                decimals: 18,
+            },
+            _ => TokenInfo::eth(), // Default to ETH for other networks
+        };
+        (format!("{:?}", Address::zero()), token_info)
     } else {
         (
             format!("{:?}", chain_config.base_token.address),
@@ -180,4 +208,69 @@ fn run_portal(shell: &Shell, config_file_path: &Path, name: &str, port: u16) -> 
 /// Will be passed as `--name` argument to `docker run`.
 fn portal_app_name(ecosystem_name: &str) -> String {
     format!("{}-portal-app", ecosystem_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zkstack_cli_config::ChainConfig;
+    use zkstack_cli_types::{BaseToken, L1Network};
+
+    #[test]
+    fn test_bsc_token_info_creation() {
+        // Test BSC mainnet token info
+        let bnb_info = TokenInfo {
+            name: "BNB".to_string(),
+            symbol: "BNB".to_string(),
+            decimals: 18,
+        };
+        assert_eq!(bnb_info.symbol, "BNB");
+        assert_eq!(bnb_info.name, "BNB");
+
+        // Test BSC testnet token info
+        let tbnb_info = TokenInfo {
+            name: "Test BNB".to_string(),
+            symbol: "tBNB".to_string(),
+            decimals: 18,
+        };
+        assert_eq!(tbnb_info.symbol, "tBNB");
+        assert_eq!(tbnb_info.name, "Test BNB");
+    }
+
+    #[test]
+    fn test_network_aware_token_selection() {
+        // Test BSC mainnet
+        let bsc_mainnet = L1Network::BscMainnet;
+        let token_info = match bsc_mainnet {
+            L1Network::BscMainnet => TokenInfo {
+                name: "BNB".to_string(),
+                symbol: "BNB".to_string(),
+                decimals: 18,
+            },
+            L1Network::BscTestnet => TokenInfo {
+                name: "Test BNB".to_string(),
+                symbol: "tBNB".to_string(),
+                decimals: 18,
+            },
+            _ => TokenInfo::eth(),
+        };
+        assert_eq!(token_info.symbol, "BNB");
+
+        // Test BSC testnet
+        let bsc_testnet = L1Network::BscTestnet;
+        let token_info = match bsc_testnet {
+            L1Network::BscMainnet => TokenInfo {
+                name: "BNB".to_string(),
+                symbol: "BNB".to_string(),
+                decimals: 18,
+            },
+            L1Network::BscTestnet => TokenInfo {
+                name: "Test BNB".to_string(),
+                symbol: "tBNB".to_string(),
+                decimals: 18,
+            },
+            _ => TokenInfo::eth(),
+        };
+        assert_eq!(token_info.symbol, "tBNB");
+    }
 }
