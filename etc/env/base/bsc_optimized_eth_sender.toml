@@ -1,0 +1,114 @@
+# BSC 优化的以太坊发送器配置
+# 专门针对 BSC 的低成本和高速度特性进行优化
+
+[eth_sender]
+
+[eth_sender.sender]
+# BSC 优化：更少的确认数以利用 BSC 的快速出块
+# BSC 3 秒出块，1 个确认约等于以太坊 4 个确认的安全性
+wait_confirmations = 1
+
+# BSC 优化：更短的等待时间
+# BSC 出块时间是 3 秒，30 个区块 = 90 秒
+expected_wait_time_block = 10  # 从 30 减少到 10 (30 秒)
+
+# BSC 优化：更频繁的轮询以匹配快速出块
+tx_poll_period = 1  # 保持 1 秒
+aggregate_tx_poll_period = 1  # 保持 1 秒
+
+# BSC 优化：增加并发交易数以利用低成本优势
+max_txs_in_flight = 50  # 从 30 增加到 50
+
+# BSC 优化：更激进的证明发送策略
+proof_sending_mode = "OnlyRealProofs"  # 在 BSC 上发送真实证明更经济
+
+# BSC 优化：增加批次大小以降低平均成本
+max_aggregated_blocks_to_commit = 3  # 从 1 增加到 3
+max_aggregated_blocks_to_execute = 20  # 从 10 增加到 20
+
+# BSC 优化：更短的截止时间以匹配快速出块
+aggregated_block_commit_deadline = 1
+aggregated_block_prove_deadline = 5  # 从 10 减少到 5
+aggregated_block_execute_deadline = 5  # 从 10 减少到 5
+
+# BSC 优化：更短的时间戳滞后容忍度
+timestamp_criteria_max_allowed_lag = 15  # 从 30 减少到 15
+
+# BSC 优化：增加交易数据大小限制
+# BSC 的 calldata 成本更低，可以发送更大的交易
+max_eth_tx_data_size = 200000  # 从 120KB 增加到 200KB
+
+# 保持聚合证明大小
+aggregated_proof_sizes = [1]
+
+# BSC 优化：降低最大聚合交易 gas
+# BSC 的 gas 成本更低，但仍需要控制单笔交易大小
+max_aggregated_tx_gas = 6000000  # 从 4M 增加到 6M
+
+# BSC 优化：增加单笔交易 gas 限制
+max_single_tx_gas = 8000000  # 从 6M 增加到 8M
+
+# BSC 优化：大幅降低最大可接受的优先费用
+# BSC 的 gas 价格通常在 3-10 Gwei，设置更合理的上限
+max_acceptable_priority_fee_in_gwei = 50  # 从 100 Gwei 降低到 50 Gwei
+
+# BSC 优化：使用 Blobs 或 Calldata（根据成本选择）
+pubdata_sending_mode = "Calldata"  # BSC 上 calldata 可能更经济
+
+# 保持验证器设置
+is_verifier_pre_fflonk = true
+
+# BSC 优化：大幅降低最大可接受的基础费用
+# BSC 的基础费用通常在 3-10 Gwei
+max_acceptable_base_fee_in_wei = 20000000000  # 20 Gwei (从 1000 Gwei 大幅降低)
+
+[eth_sender.gas_adjuster]
+# BSC 优化：降低默认优先费用
+# BSC 网络拥堵较少，不需要高优先费用
+default_priority_fee_per_gas = 100_000_000  # 0.1 Gwei (从 1 Gwei 降低)
+
+# BSC 优化：减少基础费用样本数
+# BSC 的费用波动较小，不需要太多历史数据
+max_base_fee_samples = 1000  # 从 10000 减少到 1000
+
+# BSC 优化：调整定价公式参数以适应 BSC 的稳定费用环境
+# BSC 的费用相对稳定，不需要激进的调整
+pricing_formula_parameter_a = 1.2  # 从 1.5 降低到 1.2
+pricing_formula_parameter_b = 1.0002  # 从 1.0005 降低到 1.0002
+
+# BSC 优化：提高内部 L1 定价乘数
+# BSC 成本更低，可以更激进地定价
+internal_l1_pricing_multiplier = 0.6  # 从 0.8 降低到 0.6
+
+# BSC 优化：更频繁的轮询以适应快速出块
+poll_period = 3  # 从 5 秒减少到 3 秒
+
+# BSC 特定的 gas 优化参数
+[eth_sender.bsc_optimizations]
+# BSC 网络的目标 gas 价格范围
+min_gas_price_gwei = 3
+max_gas_price_gwei = 15
+target_gas_price_gwei = 5
+
+# BSC 网络的 gas 价格调整策略
+gas_price_adjustment_strategy = "conservative"  # conservative | aggressive | adaptive
+
+# BSC 网络拥堵检测阈值
+congestion_detection_threshold = 0.7  # 当网络使用率超过 70% 时认为拥堵
+
+# 动态 gas 价格调整
+dynamic_gas_pricing_enabled = true
+gas_price_update_interval_seconds = 30
+
+# BSC 特定的重试策略
+bsc_retry_strategy = {
+    max_retries = 5,
+    base_delay_ms = 1000,
+    max_delay_ms = 10000,
+    backoff_multiplier = 1.5
+}
+
+# BSC 网络健康监控
+network_health_check_enabled = true
+health_check_interval_seconds = 60
+max_block_lag_threshold = 5  # 如果落后超过 5 个区块则认为不健康

@@ -18,6 +18,7 @@ use crate::commands::chain::{
 mod accept_chain_ownership;
 pub(crate) mod admin_call_builder;
 pub(crate) mod args;
+mod bsc_optimization;
 mod build_transactions;
 pub(crate) mod common;
 pub(crate) mod create;
@@ -35,6 +36,8 @@ mod set_token_multiplier_setter;
 pub(crate) mod set_transaction_filterer;
 mod setup_legacy_bridge;
 pub mod utils;
+
+use bsc_optimization::{optimize_for_bsc, validate_bsc_config};
 
 #[derive(Subcommand, Debug)]
 pub enum ChainCommands {
@@ -92,6 +95,30 @@ pub enum ChainCommands {
     SetDAValidatorPair(SetDAValidatorPairArgs),
     #[command(subcommand, alias = "gw")]
     Gateway(gateway::GatewayComamnds),
+    /// Optimize chain configuration for BSC network
+    OptimizeForBsc {
+        /// Chain name to optimize (optional, uses default if not specified)
+        #[clap(long)]
+        chain: Option<String>,
+        /// BSC network type (mainnet or testnet)
+        #[clap(long, default_value = "mainnet")]
+        network_type: String,
+        /// Apply optimizations immediately
+        #[clap(long)]
+        apply: bool,
+        /// Output optimized configuration to file
+        #[clap(long)]
+        output: Option<String>,
+    },
+    /// Validate chain configuration for BSC compatibility
+    ValidateBscConfig {
+        /// Chain name to validate (optional, uses default if not specified)
+        #[clap(long)]
+        chain: Option<String>,
+        /// Show detailed validation results
+        #[clap(long)]
+        detailed: bool,
+    },
 }
 
 pub(crate) async fn run(shell: &Shell, args: ChainCommands) -> anyhow::Result<()> {
@@ -136,5 +163,11 @@ pub(crate) async fn run(shell: &Shell, args: ChainCommands) -> anyhow::Result<()
         }
         ChainCommands::SetDAValidatorPair(args) => set_da_validator_pair::run(args, shell).await,
         ChainCommands::Gateway(args) => gateway::run(shell, args).await,
+        ChainCommands::OptimizeForBsc { chain, network_type, apply, output } => {
+            optimize_for_bsc(shell, chain, network_type, apply, output).await
+        }
+        ChainCommands::ValidateBscConfig { chain, detailed } => {
+            validate_bsc_config(shell, chain, detailed).await
+        }
     }
 }

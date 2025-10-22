@@ -1,0 +1,197 @@
+# BSC 优化的 ETH Sender 配置
+# 专门针对 BSC 的 3 秒出块时间和稳定 Gas 价格进行优化
+
+[eth_sender]
+
+[eth_sender.sender]
+# BSC 优化：更少的确认数以利用快速出块
+# BSC 3 秒出块，2 个确认 = 6 秒，相当于以太坊 0.5 个确认的安全性
+wait_confirmations = 2
+
+# BSC 优化：更频繁的轮询以匹配快速出块
+tx_poll_period = 1  # 1 秒轮询
+aggregate_tx_poll_period = 1  # 1 秒聚合轮询
+
+# BSC 优化：增加并发交易数以利用低成本和高速度
+max_txs_in_flight = 50  # 从 30 增加到 50
+
+# BSC 优化：在 BSC 上发送真实证明更经济
+proof_sending_mode = "OnlyRealProofs"
+
+# BSC 优化：增加聚合交易 gas 限制
+max_aggregated_tx_gas = 8000000  # 从 4M 增加到 8M
+
+# BSC 优化：增加批次聚合以提高效率
+max_aggregated_blocks_to_commit = 5   # 从 1 增加到 5
+max_aggregated_blocks_to_execute = 20  # 从 10 增加到 20
+
+# BSC 优化：更短的截止时间以匹配快速出块
+aggregated_block_commit_deadline = 10   # 10 秒 (从 5 分钟大幅缩短)
+aggregated_block_prove_deadline = 30    # 30 秒 (从 5 分钟大幅缩短)
+aggregated_block_execute_deadline = 30  # 30 秒 (从 5 分钟大幅缩短)
+
+# BSC 优化：更短的时间戳滞后容忍度
+timestamp_criteria_max_allowed_lag = 10  # 从 30 减少到 10
+
+# BSC 优化：大幅降低最大可接受的优先费用
+# BSC 的 gas 价格通常在 3-10 Gwei
+max_acceptable_priority_fee_in_gwei = 20  # 从 100 Gwei 降低到 20 Gwei
+
+# BSC 优化：使用 Calldata 模式（BSC 上更经济）
+pubdata_sending_mode = "Calldata"
+
+# BSC 优化：缩短内存池时间上限
+# BSC 出块快，交易不会在内存池停留太久
+time_in_mempool_in_l1_blocks_cap = 600  # 从 1800 减少到 600 (30 分钟)
+
+# 保持验证器设置
+is_verifier_pre_fflonk = true
+
+# BSC 优化：使用计算模式以获得更精确的 gas 估算
+gas_limit_mode = "Calculated"
+
+# BSC 优化：大幅降低最大可接受的基础费用
+max_acceptable_base_fee_in_wei = 20000000000  # 20 Gwei (从 100 Gwei 降低)
+
+# BSC 优化：设置内存池乘数上限
+time_in_mempool_multiplier_cap = 5  # 限制价格上涨倍数
+
+# BSC 优化：启用预提交以加快处理速度
+[eth_sender.sender.precommit_params]
+l2_blocks_to_aggregate = 50  # 50 个 L2 区块后预提交
+deadline = 15  # 15 秒截止时间
+
+[eth_sender.gas_adjuster]
+# BSC 优化：降低默认优先费用
+default_priority_fee_per_gas = 500000000  # 0.5 Gwei (从 1 Gwei 降低)
+
+# BSC 优化：减少基础费用样本数
+# BSC 的费用相对稳定，不需要太多历史数据
+max_base_fee_samples = 50  # 从 100 减少到 50
+
+# BSC 优化：调整定价公式参数以适应稳定的费用环境
+pricing_formula_parameter_a = 1.1  # 从 1.1 保持不变（更保守）
+pricing_formula_parameter_b = 1.0001  # 从 1.001 降低到 1.0001（更稳定）
+
+# BSC 优化：提高内部 L1 定价乘数
+internal_l1_pricing_multiplier = 0.6  # 从 1.0 降低到 0.6（更激进的定价）
+
+# BSC 优化：设置强制 L1 gas 价格（可选）
+# 如果 BSC 网络非常稳定，可以设置固定价格
+# internal_enforced_l1_gas_price = 5000000000  # 5 Gwei
+
+# BSC 优化：更频繁的轮询
+poll_period = 10  # 从 60 秒减少到 10 秒
+
+# BSC 优化：设置合理的最大 L1 gas 价格
+max_l1_gas_price = 50000000000  # 50 Gwei 上限
+
+# BSC 优化：减少 blob 基础费用样本数
+num_samples_for_blob_base_fee_estimate = 5  # 从 10 减少到 5
+
+# BSC 优化：pubdata 定价乘数
+internal_pubdata_pricing_multiplier = 0.5  # 降低 pubdata 成本
+
+# BSC 优化：设置 blob 基础费用上限
+max_blob_base_fee = 10000000000  # 10 Gwei
+
+# BSC 特定的高级优化参数
+[eth_sender.bsc_optimizations]
+
+# BSC 网络特定的 gas 价格策略
+gas_price_strategy = "fixed_with_monitoring"  # 固定价格 + 监控调整
+
+# BSC 目标 gas 价格设置
+target_gas_price_gwei = 5
+min_gas_price_gwei = 3
+max_gas_price_gwei = 15
+
+# BSC 网络拥堵检测和响应
+congestion_detection = {
+    enabled = true,
+    threshold_utilization = 0.8,  # 80% 网络利用率阈值
+    response_multiplier = 1.2,    # 拥堵时价格乘数
+    recovery_blocks = 10          # 恢复正常需要的区块数
+}
+
+# BSC 快速确认优化
+fast_confirmation = {
+    enabled = true,
+    target_confirmation_time_seconds = 9,  # 目标 9 秒确认（3 个区块）
+    max_confirmation_time_seconds = 30,    # 最大 30 秒确认
+    escalation_multiplier = 1.5            # 超时后的价格提升倍数
+}
+
+# BSC 批次优化策略
+batch_optimization = {
+    enabled = true,
+    target_batch_size = 100,               # 目标批次大小（交易数）
+    max_batch_wait_time_seconds = 30,      # 最大等待时间
+    min_batch_efficiency_ratio = 0.7       # 最小批次效率比率
+}
+
+# BSC 网络健康监控
+network_health_monitoring = {
+    enabled = true,
+    check_interval_seconds = 30,
+    rpc_timeout_seconds = 5,
+    max_consecutive_failures = 3,
+    fallback_rpc_urls = [
+        "https://bsc-dataseed1.defibit.io/",
+        "https://bsc-dataseed1.ninicoin.io/"
+    ]
+}
+
+# BSC 交易重试策略
+retry_strategy = {
+    max_retries = 5,
+    base_delay_seconds = 2,
+    max_delay_seconds = 30,
+    backoff_multiplier = 1.5,
+    jitter_enabled = true
+}
+
+# BSC 性能监控和告警
+performance_monitoring = {
+    enabled = true,
+    
+    # 性能指标阈值
+    thresholds = {
+        avg_confirmation_time_seconds = 15,
+        max_gas_price_gwei = 20,
+        min_success_rate = 0.95,
+        max_retry_rate = 0.1
+    },
+    
+    # 告警配置
+    alerts = {
+        slack_webhook_url = "",  # 可选：Slack 告警
+        email_recipients = [],   # 可选：邮件告警
+        log_level = "warn"       # 日志级别
+    }
+}
+
+# BSC 动态参数调整
+dynamic_adjustment = {
+    enabled = true,
+    adjustment_interval_minutes = 10,
+    
+    # 自动调整规则
+    rules = [
+        {
+            condition = "avg_gas_price < 3",
+            action = "decrease_multiplier",
+            factor = 0.95
+        },
+        {
+            condition = "confirmation_time > 20",
+            action = "increase_gas_price",
+            factor = 1.1
+        },
+        {
+            condition = "success_rate < 0.9",
+            action = "increase_retry_delay",
+            factor = 1.2
+        }
+    ]
+}

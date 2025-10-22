@@ -12,6 +12,7 @@ mod zksync_functions;
 mod abstract_l1_interface;
 
 mod eth_fees_oracle;
+
 #[cfg(test)]
 mod tests;
 
@@ -19,6 +20,11 @@ mod tests;
 mod tester;
 
 pub use self::{
-    aggregator::Aggregator, error::EthSenderError, eth_tx_aggregator::EthTxAggregator,
+    aggregator::Aggregator,
+    error::EthSenderError,
+    eth_tx_aggregator::EthTxAggregator,
     eth_tx_manager::EthTxManager,
 };
+
+// 网络感知模块
+pub mod network_aware;

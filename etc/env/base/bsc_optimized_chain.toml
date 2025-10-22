@@ -1,0 +1,108 @@
+# BSC 优化的 ZKsync 链参数配置
+# 专门针对 BSC 的低成本和高速度优势进行优化
+
+[chain.eth]
+# BSC 网络配置
+network = "bsc-mainnet"  # 或 "bsc-testnet"
+zksync_network = "bsc-zksync"
+zksync_network_id = 270
+
+[chain.state_keeper]
+fee_account_addr = "0xde03a0B5963f75f1C8485B355fF6D30f3093BDE7"
+
+# BSC 优化：增加交易槽位以利用 BSC 的高 TPS
+transaction_slots = 500  # 从 250 增加到 500
+
+# 保持原有的 gas 限制
+max_allowed_l2_tx_gas_limit = 1125899906842624
+
+# BSC 优化：更快的提交时间以匹配 BSC 的 3 秒出块时间
+block_commit_deadline_ms = 2000  # 从 5000ms 减少到 2000ms
+miniblock_commit_deadline_ms = 500  # 从 1000ms 减少到 500ms
+miniblock_seal_queue_capacity = 20  # 从 10 增加到 20
+miniblock_max_payload_size = 2000000  # 从 1MB 增加到 2MB
+
+# BSC 优化：调整单笔交易 gas 限制
+max_single_tx_gas = 8000000  # 从 6M 增加到 8M
+
+# 保持原有的封块阈值
+close_block_at_geometry_percentage = 0.95
+close_block_at_eth_params_percentage = 0.95
+close_block_at_gas_percentage = 0.95
+reject_tx_at_geometry_percentage = 0.95
+reject_tx_at_eth_params_percentage = 0.95
+
+# 保持原有的电路限制
+max_circuits_per_batch = 24100
+reject_tx_at_gas_percentage = 0.95
+
+# BSC 优化：大幅降低最小 L2 gas 价格以利用 BSC 的低成本优势
+# 以太坊上通常是 100000000 (0.1 Gwei)，BSC 上可以降低到 10000000 (0.01 Gwei)
+minimal_l2_gas_price = 10000000  # 降低 90%
+
+# 保持计算开销参数
+compute_overhead_part = 0.0
+pubdata_overhead_part = 1.0
+
+# BSC 优化：大幅降低批次开销 L1 gas
+# 这是最关键的优化！BSC 的 gas 成本比以太坊低 10-20 倍
+# 以太坊上是 800000，BSC 上可以降低到 80000-160000
+batch_overhead_l1_gas = 120000  # 降低 85%
+
+# BSC 优化：增加每批次最大 gas 以提高吞吐量
+max_gas_per_batch = 300000000  # 从 200M 增加到 300M
+
+# BSC 优化：增加每批次最大 pubdata
+# BSC 的 calldata 成本更低，可以增加 pubdata 限制
+max_pubdata_per_batch = 150000  # 从 100KB 增加到 150KB
+
+# 使用 V2 费用模型以获得更好的灵活性
+fee_model_version = "V2"
+
+# 保持验证 gas 限制
+validation_computational_gas_limit = 300000
+save_call_traces = true
+
+# 保持原有的哈希值
+bootloader_hash = "0x0100087fe7df1cf5616646f85bd5eebc8efe5d8deac4d85bea9b9aefd88803dd"
+default_aa_hash = "0x0100050bf9baf9d08e5d3c037f8d8b486076de7e6dceb3f3fc0989ea2c99cd67"
+evm_emulator_hash = "0x01000bbb8116fe7bdf690c19740ea350375426cec23f4f1f69a12fdc58adc9ba"
+
+protective_reads_persistence_enabled = false
+
+[chain.operations_manager]
+# BSC 优化：更快的操作间隔
+delay_interval = 50  # 从 100ms 减少到 50ms
+
+[chain.mempool]
+# BSC 优化：更快的内存池同步
+delay_interval = 50  # 从 100ms 减少到 50ms
+sync_interval_ms = 5  # 从 10ms 减少到 5ms
+sync_batch_size = 2000  # 从 1000 增加到 2000
+capacity = 20_000_000  # 从 10M 增加到 20M
+stuck_tx_timeout = 43200  # 从 1 天减少到 12 小时
+remove_stuck_txs = true
+
+[chain.circuit_breaker]
+# BSC 优化：更频繁的同步以匹配 BSC 的快速出块
+sync_interval_ms = 10000  # 从 30000ms 减少到 10000ms
+http_req_max_retry_number = 5
+http_req_retry_interval_sec = 1  # 从 2 秒减少到 1 秒
+
+# BSC 特定的费用优化参数
+[chain.bsc_optimizations]
+# BSC 网络的平均 gas 价格 (单位: Gwei)
+target_bsc_gas_price_gwei = 5  # BSC 通常 3-10 Gwei
+
+# BNB/ETH 价格比率 (用于费用计算)
+bnb_eth_price_ratio = 0.15  # BNB 通常是 ETH 价格的 10-20%
+
+# BSC 出块时间 (秒)
+bsc_block_time_seconds = 3
+
+# L1 交易确认时间优化
+l1_confirmation_time_seconds = 9  # 3 个 BSC 区块
+
+# 动态费用调整参数
+dynamic_fee_adjustment_enabled = true
+fee_adjustment_interval_blocks = 10  # 每 10 个 L2 区块调整一次费用

@@ -246,7 +246,7 @@ async fn return_ecosystem_contracts(
             L1Network::Localhost => {
                 ContractsConfig::get_path_with_base_path(&ecosystem_config.config)
             }
-            L1Network::Sepolia | L1Network::Holesky | L1Network::Mainnet => {
+            L1Network::Sepolia | L1Network::Holesky | L1Network::Mainnet | L1Network::BscMainnet | L1Network::BscTestnet => {
                 ecosystem_preexisting_configs_path
             }
         });

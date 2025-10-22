@@ -27,6 +27,8 @@ const TOO_MANY_RESULTS_ALCHEMY: &str = "response size exceeded";
 const TOO_MANY_RESULTS_RETH: &str = "length limit exceeded";
 const TOO_BIG_RANGE_RETH: &str = "query exceeds max block range";
 const TOO_MANY_RESULTS_CHAINSTACK: &str = "range limit exceeded";
+const TOO_MANY_RESULTS_BSC: &str = "limit exceeded";  // BSC network specific error
+
 const REQUEST_REJECTED_503: &str = "Request rejected `503`";
 
 #[async_trait]
@@ -283,6 +285,7 @@ impl EthProofManagerClient for ProofManagerClient {
                 || err_message.contains(TOO_MANY_RESULTS_RETH)
                 || err_message.contains(TOO_BIG_RANGE_RETH)
                 || err_message.contains(TOO_MANY_RESULTS_CHAINSTACK)
+                || err_message.contains(TOO_MANY_RESULTS_BSC)  // Add BSC support
                 || err_message.contains(REQUEST_REJECTED_503)
             {
                 // get the numeric block ids
@@ -303,8 +306,14 @@ impl EthProofManagerClient for ProofManagerClient {
                 };
 
                 // divide range into two halves and recursively fetch them
-                let mid = (from_number + to_number) / 2;
-
+                // For BSC network, use smaller chunks to avoid repeated limit exceeded errors
+                let range_size = to_number - from_number;
+                let mid = if err_message.contains(TOO_MANY_RESULTS_BSC) && range_size > 10_000u64.into() {
+                    // For BSC, use smaller chunks (max 5000 blocks per request)
+                    from_number + std::cmp::min(5_000u64.into(), range_size / 4u64)
+                } else {
+                    (from_number + to_number) / 2u64
+                };
                 // safety check to prevent infinite recursion (quite unlikely)
                 if from_number >= mid {
                     tracing::warn!("Infinite recursion detected while getting events: from_number={from_number:?}, mid={mid:?}");

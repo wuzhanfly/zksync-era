@@ -22,7 +22,7 @@ use zksync_types::{
 use super::{metrics::METRICS, EthSenderError};
 use crate::{
     abstract_l1_interface::{AbstractL1Interface, OperatorNonce, OperatorType, RealL1Interface},
-    eth_fees_oracle::{EthFees, EthFeesOracle, GasAdjusterFeesOracle},
+    eth_fees_oracle::{BscGasPriceProvider, EthFees, EthFeesOracle, GasAdjusterFeesOracle},
     health::{EthTxDetails, EthTxManagerHealthDetails},
     metrics::TransactionType,
 };
@@ -63,10 +63,11 @@ impl EthTxManager {
                 config.time_in_mempool_in_l1_blocks_cap
             };
         let fees_oracle = GasAdjusterFeesOracle {
-            gas_adjuster,
+            gas_adjuster: gas_adjuster.clone(),
             max_acceptable_priority_fee_in_gwei: config.max_acceptable_priority_fee_in_gwei,
             time_in_mempool_in_l1_blocks_cap,
             max_acceptable_base_fee_in_wei: config.max_acceptable_base_fee_in_wei,
+            bsc_provider: BscGasPriceProvider::new(gas_adjuster),
         };
         let l1_interface = Box::new(RealL1Interface {
             ethereum_client,
@@ -166,6 +167,7 @@ impl EthTxManager {
 
         if let Some(previous_sent_tx) = previous_sent_tx {
             METRICS.transaction_resent.inc();
+            let operator_address = self.operator_address(operator_type);
             tracing::info!(
                 "Resending {operator_type:?} tx {} (nonce {}) \
                 at block {current_block} with \
@@ -179,7 +181,7 @@ impl EthTxManager {
                 blob_fee_per_gas {:?}, \
                 max_gas_per_pubdata_price {:?}, \
                 gas_limit {gas_limit:?}, \
-                ",
+                operator_address {operator_address:?}",
                 tx.id,
                 tx.nonce,
                 previous_sent_tx.base_fee_per_gas,
@@ -188,6 +190,7 @@ impl EthTxManager {
                 previous_sent_tx.max_gas_per_pubdata,
             );
         } else {
+            let operator_address = self.operator_address(operator_type);
             tracing::info!(
                 "Sending {operator_type:?} tx {} (nonce {}) \
                 at block {current_block} with \
@@ -196,7 +199,7 @@ impl EthTxManager {
                 blob_fee_per_gas {blob_base_fee_per_gas:?},\
                 max_gas_per_pubdata_price {max_gas_per_pubdata_price:?},\
                 gas_limit {gas_limit:?}, \
-                ",
+                operator_address {operator_address:?}",
                 tx.id,
                 tx.nonce
             );
@@ -270,12 +273,14 @@ impl EthTxManager {
             .send_raw_transaction(storage, tx_history_id, signed_tx.raw_tx, operator_type)
             .await;
         if let Err(error) = send_result {
+            let operator_address = self.operator_address(operator_type);
             tracing::warn!(
                 "Error Sending {operator_type:?} tx {} (nonce {}) at block {current_block} with \
                 base_fee_per_gas {base_fee_per_gas:?}, \
                 priority_fee_per_gas {priority_fee_per_gas:?}, \
                 blob_fee_per_gas {blob_base_fee_per_gas:?},\
-                gas_limit {gas_limit:?},
+                gas_limit {gas_limit:?}, \
+                operator_address {operator_address:?}, \
                 error {error}",
                 tx.id,
                 tx.nonce,
@@ -304,7 +309,7 @@ impl EthTxManager {
                     // Settlement mode is L1.
                     (gas_without_pubdata
                         + ((L1_GAS_PER_PUBDATA_BYTE + L1_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS)
-                            * tx.raw_tx.len() as u32) as u64)
+                        * tx.raw_tx.len() as u32) as u64)
                         .into()
                 }
                 OperatorType::Gateway => {
@@ -339,8 +344,8 @@ impl EthTxManager {
         if let Some(max_gas_per_pubdata_price) = max_gas_per_pubdata_price {
             (gas_without_pubdata
                 + ((max_gas_per_pubdata_price
-                    + GATEWAY_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS as u64)
-                    * tx.raw_tx.len() as u64))
+                + GATEWAY_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS as u64)
+                * tx.raw_tx.len() as u64))
                 .into()
         } else {
             self.config.max_aggregated_tx_gas.into()
@@ -578,7 +583,7 @@ impl EthTxManager {
                     last_finalized_tx: EthTxDetails::new(tx, Some((&tx_status).into())),
                     finalized_block: blocks.finalized,
                 }
-                .into(),
+                    .into(),
             );
         }
 
@@ -819,7 +824,7 @@ impl EthTxManager {
                 time_in_mempool_in_l1_blocks,
                 l1_block_numbers.latest,
             )
-            .await?;
+                .await?;
         }
         Ok(())
     }

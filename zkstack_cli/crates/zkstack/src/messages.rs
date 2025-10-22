@@ -33,14 +33,14 @@ pub(super) const MSG_OUTRO_AUTOCOMPLETE_GENERATION: &str =
     "Autocompletion file correctly generated";
 
 /// Ecosystem create related messages
-pub(super) const MSG_L1_NETWORK_HELP: &str = "L1 Network";
+pub(super) const MSG_L1_NETWORK_HELP: &str = "L1 Network (ethereum mainnet, sepolia, holesky, bsc-mainnet, bsc-testnet, localhost)";
 pub(super) const MSG_LINK_TO_CODE_HELP: &str = "Code link";
 pub(super) const MSG_START_CONTAINERS_HELP: &str =
     "Start reth and postgres containers after creation";
 pub(super) const MSG_ECOSYSTEM_NAME_PROMPT: &str = "What do you want to name the ecosystem?";
 pub(super) const MSG_REPOSITORY_ORIGIN_PROMPT: &str = "Select the origin of zksync-era repository";
 pub(super) const MSG_LINK_TO_CODE_PROMPT: &str = "Where's the code located?";
-pub(super) const MSG_L1_NETWORK_PROMPT: &str = "Select the L1 network";
+pub(super) const MSG_L1_NETWORK_PROMPT: &str = "Select the L1 network (Ethereum Mainnet/Sepolia, BSC Mainnet/Testnet, or localhost)";
 pub(super) const MSG_START_CONTAINERS_PROMPT: &str =
     "Do you want to start containers after creating the ecosystem?";
 pub(super) const MSG_CREATING_ECOSYSTEM: &str = "Creating ecosystem";
@@ -435,10 +435,28 @@ pub(super) fn msg_address_doesnt_have_enough_money_prompt(
     actual: U256,
     expected: U256,
 ) -> String {
+    msg_address_doesnt_have_enough_money_prompt_with_network(address, actual, expected, None)
+}
+
+pub(super) fn msg_address_doesnt_have_enough_money_prompt_with_network(
+    address: &H160,
+    actual: U256,
+    expected: U256,
+    l1_network: Option<zkstack_cli_types::L1Network>,
+) -> String {
     let actual = format_ether(actual);
-    let expected = format_ether(expected);
+
+    // 根据 L1 网络类型调整推荐金额和代币名称
+    let (recommended_amount, token_name) = match l1_network {
+        Some(zkstack_cli_types::L1Network::BscMainnet) => ("1".to_string(), "BNB"),
+        Some(zkstack_cli_types::L1Network::BscTestnet) => ("0.05".to_string(), "tBNB"),
+        _ => {
+            let expected = format_ether(expected);
+            (expected, "ETH")
+        }
+    };
     format!(
-        "It is recommended to have {expected} ETH on the address {address:?} to deploy contracts. Current balance is {actual} ETH. How do you want to proceed?",
+        "It is recommended to have {recommended_amount} {token_name} on the address {address:?} to deploy contracts. Current balance is {actual} {token_name}. How do you want to proceed?",
     )
 }
 

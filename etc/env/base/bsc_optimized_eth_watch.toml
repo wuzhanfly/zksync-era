@@ -1,0 +1,71 @@
+# BSC-optimized Ethereum watch configuration
+# This configuration is specifically tuned for BSC's 3-second block times and high throughput
+
+[eth_watch]
+# Fast polling for BSC's 3-second blocks (poll every 1.5 seconds)
+eth_node_poll_interval = 1500  # 1.5 seconds
+
+# Reduced confirmations due to BSC's faster finality
+# 2 confirmations = 6 seconds total (2 * 3s blocks)
+confirmations_for_eth_event = 2
+
+# Extended event expiration to cover same time period as Ethereum
+# BSC produces 3x more blocks than Ethereum for the same time period
+# 150,000 blocks ≈ 7 days at 3-second blocks
+event_expiration_blocks = 150000
+
+# BSC-specific optimizations
+[eth_watch.bsc_optimizations]
+# Enable aggressive batching for high-throughput scenarios
+enable_aggressive_batching = true
+
+# Higher batch size for BSC's higher event throughput
+max_events_per_batch = 2000
+
+# Parallel processing workers for high-volume event processing
+parallel_batch_workers = 4
+
+# Fast confirmation mode - process events with minimal validation
+fast_confirmation_mode = true
+
+# Shorter RPC timeout for faster responses
+rpc_timeout = 15000  # 15 seconds
+
+# BSC-specific event processing optimizations
+[eth_watch.bsc_optimizations.event_processing]
+# Enable event deduplication cache
+enable_event_cache = true
+
+# Cache size for event deduplication (number of events)
+event_cache_size = 10000
+
+# Enable batch database operations
+enable_batch_db_operations = true
+
+# Maximum database batch size
+max_db_batch_size = 500
+
+# BSC network monitoring
+[eth_watch.bsc_optimizations.monitoring]
+# Enable detailed BSC metrics
+enable_bsc_metrics = true
+
+# Metrics collection interval
+metrics_interval = 30000  # 30 seconds
+
+# Enable performance profiling
+enable_performance_profiling = false
+
+# BSC error handling and recovery
+[eth_watch.bsc_optimizations.error_handling]
+# Shorter backoff for BSC due to faster block times
+error_backoff_base_ms = 3000  # 3 seconds
+
+# Maximum backoff time
+error_backoff_max_ms = 30000  # 30 seconds
+
+# Number of retries before giving up
+max_retries = 5
+
+# Enable automatic recovery from transient errors
+enable_auto_recovery = true

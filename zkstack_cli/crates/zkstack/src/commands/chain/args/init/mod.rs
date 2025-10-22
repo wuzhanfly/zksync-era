@@ -84,22 +84,26 @@ impl InitArgs {
             })
         };
 
-        let l1_rpc_url = if self.dev {
+
+        let l1_rpc_url = if let Some(url) = self.l1_rpc_url {
+            // Use explicitly provided URL (from ecosystem init or command line)
+            url
+        } else if self.dev {
+            // Use local URL only if dev mode and no URL provided
             LOCAL_RPC_URL.to_string()
         } else {
-            self.l1_rpc_url.unwrap_or_else(|| {
-                let mut prompt = Prompt::new(MSG_RPC_URL_PROMPT);
-                if config.l1_network == L1Network::Localhost {
-                    prompt = prompt.default(LOCAL_RPC_URL);
-                }
-                prompt
-                    .validate_with(|val: &String| -> Result<(), String> {
-                        Url::parse(val)
-                            .map(|_| ())
-                            .map_err(|_| MSG_L1_RPC_URL_INVALID_ERR.to_string())
-                    })
-                    .ask()
-            })
+            // Prompt user for URL
+            let mut prompt = Prompt::new(MSG_RPC_URL_PROMPT);
+            if config.l1_network == L1Network::Localhost {
+                prompt = prompt.default(LOCAL_RPC_URL);
+            }
+            prompt
+                .validate_with(|val: &String| -> Result<(), String> {
+                    Url::parse(val)
+                        .map(|_| ())
+                        .map_err(|_| MSG_L1_RPC_URL_INVALID_ERR.to_string())
+                })
+                .ask()
         };
 
         let validium_config = match config.l1_batch_commit_data_generator_mode {

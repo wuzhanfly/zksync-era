@@ -10,7 +10,8 @@ use crate::commands::dev::{
 pub(crate) async fn run(shell: &Shell) -> anyhow::Result<()> {
     let chain = ZkStackConfig::current_chain(shell)?;
     let spinner = Spinner::new(MSG_GENESIS_FILE_GENERATION_STARTED);
-    let secrets_path = chain.path_to_secrets_config().canonicalize().unwrap();
+    let secrets_path = chain.path_to_secrets_config().canonicalize()
+        .map_err(|e| anyhow::anyhow!("Failed to find secrets config at {:?}: {}. Please ensure the chain is properly initialized with 'zkstack chain init'.", chain.path_to_secrets_config(), e))?;
     let dal = get_core_dal(shell, None).await?;
     reset_database(shell, chain.link_to_code(), dal).await?;
     let _dir = shell.push_dir("core");
