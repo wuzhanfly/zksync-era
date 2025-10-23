@@ -39,22 +39,95 @@ pub async fn check_the_balance(forge: &ForgeScript) -> anyhow::Result<()> {
 
 /// Infer L1 network from RPC URL
 fn infer_l1_network_from_rpc_url(rpc_url: &str) -> Option<zkstack_cli_types::L1Network> {
+    // First try URL-based detection for known patterns
     if rpc_url.contains("bsc") || rpc_url.contains("binance") || rpc_url.contains("bnb") {
         if rpc_url.contains("testnet") {
-            Some(zkstack_cli_types::L1Network::BscTestnet)
+            return Some(zkstack_cli_types::L1Network::BscTestnet);
         } else {
-            Some(zkstack_cli_types::L1Network::BscMainnet)
+            return Some(zkstack_cli_types::L1Network::BscMainnet);
         }
     } else if rpc_url.contains("127.0.0.1") || rpc_url.contains("localhost") {
-        Some(zkstack_cli_types::L1Network::Localhost)
+        return Some(zkstack_cli_types::L1Network::Localhost);
     } else if rpc_url.contains("sepolia") {
-        Some(zkstack_cli_types::L1Network::Sepolia)
+        return Some(zkstack_cli_types::L1Network::Sepolia);
     } else if rpc_url.contains("holesky") {
-        Some(zkstack_cli_types::L1Network::Holesky)
-    } else {
-        // Default to mainnet for unknown URLs
-        Some(zkstack_cli_types::L1Network::Mainnet)
+        return Some(zkstack_cli_types::L1Network::Holesky);
     }
+    
+    // For unknown URLs, try to detect network by Chain ID
+    match get_chain_id_from_rpc(rpc_url) {
+        Ok(chain_id) => {
+            eprintln!("Successfully detected chain ID: {}", chain_id);
+            match chain_id {
+                1 => Some(zkstack_cli_types::L1Network::Mainnet),
+                56 => Some(zkstack_cli_types::L1Network::BscMainnet),
+                97 => {
+                    eprintln!("Detected BSC Testnet (Chain ID: 97)");
+                    Some(zkstack_cli_types::L1Network::BscTestnet)
+                },
+                11155111 => Some(zkstack_cli_types::L1Network::Sepolia),
+                17000 => Some(zkstack_cli_types::L1Network::Holesky),
+                9 => Some(zkstack_cli_types::L1Network::Localhost),
+                _ => {
+                    eprintln!("Warning: Unknown chain ID: {}, defaulting to Mainnet", chain_id);
+                    Some(zkstack_cli_types::L1Network::Mainnet)
+                }
+            }
+        },
+        Err(e) => {
+            // Fallback to mainnet if chain ID detection fails
+            eprintln!("Warning: Failed to detect chain ID from RPC URL: {}, error: {}, defaulting to Mainnet", rpc_url, e);
+            Some(zkstack_cli_types::L1Network::Mainnet)
+        }
+    }
+}
+
+/// Get Chain ID from RPC URL by making an eth_chainId call
+fn get_chain_id_from_rpc(rpc_url: &str) -> Result<u64, Box<dyn std::error::Error>> {
+    use std::process::Command;
+    
+    // Use curl to make eth_chainId RPC call with timeout
+    let output = Command::new("curl")
+        .arg("-s")
+        .arg("--connect-timeout")
+        .arg("10")
+        .arg("--max-time")
+        .arg("30")
+        .arg("-X")
+        .arg("POST")
+        .arg("-H")
+        .arg("Content-Type: application/json")
+        .arg("--data")
+        .arg(r#"{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}"#)
+        .arg(rpc_url)
+        .output()?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        eprintln!("RPC call failed with status: {}, stderr: {}", output.status, stderr);
+        return Err(format!("RPC call failed: {}", stderr).into());
+    }
+    
+    let response = String::from_utf8(output.stdout)?;
+    eprintln!("RPC response: {}", response);
+    
+    // Parse JSON response to extract chain ID
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response) {
+        if let Some(result) = json.get("result") {
+            if let Some(chain_id_hex) = result.as_str() {
+                // Remove "0x" prefix and parse as hex
+                let chain_id_str = chain_id_hex.trim_start_matches("0x");
+                let chain_id = u64::from_str_radix(chain_id_str, 16)?;
+                eprintln!("Detected chain ID: {} (0x{})", chain_id, chain_id_str);
+                return Ok(chain_id);
+            }
+        }
+        if let Some(error) = json.get("error") {
+            return Err(format!("RPC error: {}", error).into());
+        }
+    }
+    
+    Err(format!("Failed to parse chain ID from RPC response: {}", response).into())
 }
 
 pub async fn check_the_balance_with_network(forge: &ForgeScript, l1_network: Option<zkstack_cli_types::L1Network>) -> anyhow::Result<()> {

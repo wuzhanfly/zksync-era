@@ -3,16 +3,16 @@
 # 使用 HTTP/1.1 修复的 L2 启动脚本
 
 set -e
-export ETH_WATCHER_EVENT_EXPIRATION_BLOCKS=1000
 export L1_CHAIN_ID=97
+export L1_RPC_URL="http://47.130.24.70:10575"
 
 echo "🚀 启动 ZKsync Era L2 服务 (HTTP/1.1 修复版)"
 echo "============================================="
 
 # 配置
-ECOSYSTEM_DIR="/home/wuzhanfly/bsc-testnet-demo/bsc_testnet_demo"
-CHAIN_NAME="bsc_test_chain"
-ZKSTACK_BIN="/home/wuzhanfly/git/zkstck_cliv0.2.1/zkstack_cli/target/release/zkstack"
+ECOSYSTEM_DIR="/home/jerry/test_bsc_ecosystem"
+CHAIN_NAME="test_bsc_chain"
+ZKSTACK_BIN="/home/jerry/git/zksync-era/zkstack_cli/target/release/zkstack"
 
 # 应用环境变量修复
 if [ -f "/tmp/bsc_env_fix.sh" ]; then
@@ -59,7 +59,7 @@ echo "重试机制: 启用"
 echo ""
 
 # 设置环境变量
-export DATABASE_URL="postgres://postgres:notsecurepassword@localhost:5432/zksync_server_bsc_testnet_bsc_test_chain"
+export DATABASE_URL="postgres://postgres:notsecurepassword@localhost:5432/zk_bsc_test"
 export RUST_LOG="info,hyper=warn,reqwest=warn"
 export ZKSYNC_HOME="$PWD"
 

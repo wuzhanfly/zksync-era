@@ -1,0 +1,57 @@
+# ZKSync Server Dockerfile - 使用预编译二进制文件
+FROM ubuntu:22.04
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUST_LOG=info
+ENV RUST_BACKTRACE=1
+
+# 安装运行时依赖 (不包括编译工具)
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    ca-certificates \
+    postgresql-client \
+    libc6 \
+    libssl3 \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建应用目录和用户
+RUN useradd -r -s /bin/false zksync
+WORKDIR /app
+
+# 复制预编译的二进制文件
+COPY zkstack_cli/target/release/zkstack /app/bin/zkstack
+COPY core/target/release/zksync_server /app/bin/zksync_server
+
+# 复制其他可能的二进制文件
+COPY core/target/release/zksync_external_node /app/bin/zksync_external_node 2>/dev/null || true
+COPY core/target/release/zksync_contract_verifier /app/bin/zksync_contract_verifier 2>/dev/null || true
+
+# 复制配置文件和链数据
+COPY chains/ /app/chains/ 2>/dev/null || true
+COPY etc/ /app/etc/ 2>/dev/null || true
+COPY configs/ /app/configs/ 2>/dev/null || true
+
+# 设置权限
+RUN chmod +x /app/bin/* && \
+    chown -R zksync:zksync /app
+
+# 切换到非root用户
+USER zksync
+
+# 暴露端口
+EXPOSE 3050 3051 3081 3312
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3081/health || exit 1
+
+# 启动命令 - 使用预编译的二进制文件
+CMD ["/app/bin/zksync_server", \
+     "--genesis-path", "/app/chains/bsc_chain/configs/genesis.yaml", \
+     "--config-path", "/app/chains/bsc_chain/configs/general.yaml", \
+     "--wallets-path", "/app/chains/bsc_chain/configs/wallets.yaml", \
+     "--secrets-path", "/app/chains/bsc_chain/configs/secrets.yaml", \
+     "--contracts-config-path", "/app/chains/bsc_chain/configs/contracts.yaml"]

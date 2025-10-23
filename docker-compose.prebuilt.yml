@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:14
+    container_name: zksync-postgres-bsc-prebuilt
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ZKSync 服务器 (使用预编译二进制)
+  zksync-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.prebuilt
+    container_name: zksync-server-bsc-prebuilt
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # BSC 网络配置
+      L1_CHAIN_ID: ${L1_CHAIN_ID:-97}
+      L1_RPC_URL: ${L1_RPC_URL:-https://bsc-testnet-dataseed.bnbchain.org}
+      
+      # 数据库配置
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD:-your_secure_password}@postgres:5432/${DB_NAME:-zk_bsc_testnet}
+      
+      # 服务配置
+      API_WEB3_JSON_RPC_HTTP_PORT: 3050
+      API_WEB3_JSON_RPC_WS_PORT: 3051
+      API_PROMETHEUS_PORT: 3312
+      API_HEALTHCHECK_PORT: 3081
+      
+      # 钱包配置
+      OPERATOR_PRIVATE_KEY: ${OPERATOR_PRIVATE_KEY}
+      GOVERNOR_PRIVATE_KEY: ${GOVERNOR_PRIVATE_KEY}
+      
+      # 日志配置
+      RUST_LOG: ${RUST_LOG:-info}
+      RUST_BACKTRACE: 1
+    ports:
+      - "3050:3050"  # HTTP API
+      - "3051:3051"  # WebSocket API
+      - "3081:3081"  # Health check
+      - "3312:3312"  # Prometheus metrics
+    volumes:
+      - zksync_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: zksync-nginx-bsc-prebuilt
+    restart: unless-stopped
+    depends_on:
+      - zksync-server
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  zksync_data:
+    driver: local
+
+networks:
+  default:
+    name: zksync-bsc-prebuilt-network

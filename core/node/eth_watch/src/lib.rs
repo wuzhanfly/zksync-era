@@ -211,12 +211,12 @@ impl EthWatch {
                 .await
                 .map_err(DalError::generalize)
                 .map_err(EventProcessorError::internal)?;
-            // BSC network range limit: enforce maximum 2000 blocks per query
+            // BSC network range limit: enforce maximum 5000 blocks per query
             // This ensures we gradually catch up to the target block height
             let original_to_block = to_block;
             let mut to_block = to_block;
             if chain_id.0 == 56 || chain_id.0 == 97 { // BSC Mainnet or Testnet
-                let max_range = 2000u64;
+                let max_range = 5000u64;
                 let current_range = to_block.saturating_sub(from_block);
                 if current_range > max_range {
                     to_block = from_block + max_range;
