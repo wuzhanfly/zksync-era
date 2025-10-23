@@ -1,0 +1,54 @@
+# ZKSync Server Dockerfile for BSC
+FROM ubuntu:22.04
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUST_LOG=info
+ENV RUST_BACKTRACE=1
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    postgresql-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 创建应用目录
+WORKDIR /app
+
+# 复制源代码
+COPY . .
+
+# 编译应用
+RUN cd core && cargo build --release --bin zksync_server
+
+# 创建运行用户
+RUN useradd -r -s /bin/false zksync && \
+    chown -R zksync:zksync /app
+
+# 切换到非root用户
+USER zksync
+
+# 暴露端口
+EXPOSE 3050 3051 3081 3312
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3081/health || exit 1
+
+# 启动命令
+CMD ["/app/core/target/release/zksync_server", \
+     "--genesis-path", "/app/chains/bsc_chain/configs/genesis.yaml", \
+     "--config-path", "/app/chains/bsc_chain/configs/general.yaml", \
+     "--wallets-path", "/app/chains/bsc_chain/configs/wallets.yaml", \
+     "--secrets-path", "/app/chains/bsc_chain/configs/secrets.yaml", \
+     "--contracts-config-path", "/app/chains/bsc_chain/configs/contracts.yaml"]

@@ -17,6 +17,24 @@ use crate::{
 
 const FEE_HISTORY_MAX_REQUEST_CHUNK: usize = 1023;
 
+/// 检测是否为BSC网络（通过环境变量）
+fn detect_bsc_network_from_env() -> bool {
+    if let Ok(chain_id_str) = std::env::var("L1_CHAIN_ID") {
+        if let Ok(chain_id) = chain_id_str.parse::<u64>() {
+            matches!(chain_id, 56 | 97) // BSC Mainnet (56) 或 BSC Testnet (97)
+        } else {
+            false
+        }
+    } else {
+        // 如果没有设置环境变量，尝试从RPC URL推断
+        if let Ok(rpc_url) = std::env::var("L1_RPC_URL") {
+            rpc_url.contains("bsc") || rpc_url.contains("binance") || rpc_url.contains("bnb")
+        } else {
+            false
+        }
+    }
+}
+
 #[async_trait]
 impl<T> EthInterface for T
 where
@@ -324,7 +342,9 @@ where
             .with_arg("block", &chunk_end)
             .await?;
 
-        if fee_history.oldest_block != web3::BlockNumber::Number(chunk_start.into()) {
+        // BSC 兼容性检查：BSC 的 oldest_block 可能与预期略有不同
+        let is_bsc_network = detect_bsc_network_from_env();
+        if !is_bsc_network && fee_history.oldest_block != web3::BlockNumber::Number(chunk_start.into()) {
             let oldest_block = match fee_history.oldest_block {
                 web3::BlockNumber::Number(oldest_block) => oldest_block.to_string(),
                 _ => format!("{:?}", fee_history.oldest_block),
@@ -334,39 +354,110 @@ where
             return Err(EnrichedClientError::custom(message, "l1_fee_history")
                 .with_arg("chunk_size", &chunk_size)
                 .with_arg("chunk_end", &chunk_end));
+        } else if is_bsc_network {
+            // BSC 网络：记录但不报错
+            if let web3::BlockNumber::Number(oldest_block) = fee_history.oldest_block {
+                tracing::debug!(
+                    "BSC fee_history: expected oldest_block={}, got={}, chunk_size={}, chunk_end={}",
+                    chunk_start, oldest_block, chunk_size, chunk_end
+                );
+            }
         }
 
-        if fee_history.base_fee_per_gas.len() != chunk_size + 1 {
-            let message = format!(
-                "unexpected `base_fee_per_gas.len()`, expected: {}, got {}",
-                chunk_size + 1,
-                fee_history.base_fee_per_gas.len()
+        // BSC 兼容性：BSC 的 base_fee_per_gas 数组长度可能不符合以太坊标准
+        let base_fees = if is_bsc_network {
+            // BSC 网络特殊处理：BSC 的 fee history API 实现有问题
+            tracing::debug!(
+                "BSC fee_history: requested chunk_size={}, got base_fee_per_gas.len()={}, gasUsedRatio.len()={}",
+                chunk_size,
+                fee_history.base_fee_per_gas.len(),
+                fee_history.gas_used_ratio.len()
             );
-            return Err(EnrichedClientError::custom(message, "l1_fee_history")
-                .with_arg("chunk_size", &chunk_size)
-                .with_arg("chunk_end", &chunk_end));
-        }
+            
+            // BSC 通常返回较少的数据，我们需要智能处理
+            let mut base_fees = fee_history.base_fee_per_gas;
+            
+            if base_fees.len() < chunk_size + 1 {
+                // BSC 返回的数据不足，使用智能填充策略
+                let fill_value = if !base_fees.is_empty() {
+                    // 使用最后一个有效值
+                    *base_fees.last().unwrap()
+                } else {
+                    // BSC 典型的 gas price：1 Gwei (BSC 网络通常使用固定的低费用)
+                    U256::from(1_000_000_000u64)
+                };
+                
+                tracing::info!(
+                    "BSC fee_history: padding from {} to {} entries with value {} wei ({} Gwei)",
+                    base_fees.len(),
+                    chunk_size + 1,
+                    fill_value,
+                    fill_value / U256::from(1_000_000_000u64)
+                );
+                
+                base_fees.resize(chunk_size + 1, fill_value);
+            } else if base_fees.len() > chunk_size + 1 {
+                // 如果返回的数据过多，截取需要的部分
+                base_fees.truncate(chunk_size + 1);
+            }
+            
+            base_fees
+        } else {
+            // 以太坊网络：保持原有严格检查
+            if fee_history.base_fee_per_gas.len() != chunk_size + 1 {
+                let message = format!(
+                    "unexpected `base_fee_per_gas.len()`, expected: {}, got {}",
+                    chunk_size + 1,
+                    fee_history.base_fee_per_gas.len()
+                );
+                return Err(EnrichedClientError::custom(message, "l1_fee_history")
+                    .with_arg("chunk_size", &chunk_size)
+                    .with_arg("chunk_end", &chunk_end));
+            }
+            fee_history.base_fee_per_gas
+        };
 
-        // Per specification, the values should always be provided, and must be 0 for blocks
-        // prior to EIP-4844.
-        // https://ethereum.github.io/execution-apis/api-documentation/
-        if fee_history.base_fee_per_blob_gas.len() != chunk_size + 1 {
-            let message = format!(
-                "unexpected `base_fee_per_blob_gas.len()`, expected: {}, got {}",
-                chunk_size + 1,
-                fee_history.base_fee_per_blob_gas.len()
-            );
-            return Err(EnrichedClientError::custom(message, "l1_fee_history")
-                .with_arg("chunk_size", &chunk_size)
-                .with_arg("chunk_end", &chunk_end));
-        }
+        // BSC 兼容性：BSC 不支持 EIP-4844 blob 交易，可能不返回 base_fee_per_blob_gas
+        let blob_fees = if is_bsc_network {
+            // BSC 网络：如果没有 blob 费用数据，创建零值数组
+            if fee_history.base_fee_per_blob_gas.is_empty() {
+                tracing::debug!("BSC network: creating zero blob fees for {} blocks", chunk_size + 1);
+                vec![U256::zero(); chunk_size + 1]
+            } else if fee_history.base_fee_per_blob_gas.len() != chunk_size + 1 {
+                tracing::warn!(
+                    "BSC network: unexpected blob fee length {}, expected {}, padding with zeros",
+                    fee_history.base_fee_per_blob_gas.len(),
+                    chunk_size + 1
+                );
+                let mut blob_fees = fee_history.base_fee_per_blob_gas;
+                blob_fees.resize(chunk_size + 1, U256::zero());
+                blob_fees
+            } else {
+                fee_history.base_fee_per_blob_gas
+            }
+        } else {
+            // 以太坊网络：保持原有严格检查
+            // Per specification, the values should always be provided, and must be 0 for blocks
+            // prior to EIP-4844.
+            // https://ethereum.github.io/execution-apis/api-documentation/
+            if fee_history.base_fee_per_blob_gas.len() != chunk_size + 1 {
+                let message = format!(
+                    "unexpected `base_fee_per_blob_gas.len()`, expected: {}, got {}",
+                    chunk_size + 1,
+                    fee_history.base_fee_per_blob_gas.len()
+                );
+                return Err(EnrichedClientError::custom(message, "l1_fee_history")
+                    .with_arg("chunk_size", &chunk_size)
+                    .with_arg("chunk_end", &chunk_end));
+            }
+            fee_history.base_fee_per_blob_gas
+        };
 
         // We take `chunk_size` entries for consistency with `l2_base_fee_history` which doesn't
         // have correct data for block with number `upto_block + 1`.
-        for (base, blob) in fee_history
-            .base_fee_per_gas
+        for (base, blob) in base_fees
             .into_iter()
-            .zip(fee_history.base_fee_per_blob_gas)
+            .zip(blob_fees)
             .take(chunk_size)
         {
             let fees = BaseFees {

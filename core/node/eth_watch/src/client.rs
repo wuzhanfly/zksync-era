@@ -255,12 +255,12 @@ where
                 };
 
                 // divide range into two halves and recursively fetch them
-                // For BSC network, use much smaller chunks to avoid repeated limit exceeded errors
+                // For BSC network, use optimized chunks to balance efficiency and reliability
                 let range_size = to_number - from_number;
                 let mid = if err_message.contains(TOO_MANY_RESULTS_BSC) || err_message.contains("Block range is too large") {
-                    // For BSC, use very small chunks (max 2000 blocks per request)
-                    // This is conservative but ensures we don't hit the limit
-                    from_number + std::cmp::min(2_000u64.into(), range_size / 4u64)
+                    // For BSC, use optimized chunks (max 5000 blocks per request)
+                    // This balances efficiency with reliability
+                    from_number + std::cmp::min(5_000u64.into(), range_size / 2u64)
                 } else {
                     (from_number + to_number) / 2u64
                 };
