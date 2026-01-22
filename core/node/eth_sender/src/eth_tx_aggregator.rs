@@ -33,7 +33,7 @@ use zksync_types::{
     pubdata_da::PubdataSendingMode,
     server_notification::GatewayMigrationState,
     settlement::SettlementLayer,
-    web3::{contract::Error as Web3ContractError, CallRequest},
+    web3::{contract::Error as Web3ContractError, BlockId, BlockNumber, CallRequest},
     Address, L1BatchNumber, L2ChainId, ProtocolVersionId, SLChainId, H256, U256,
 };
 
@@ -204,17 +204,56 @@ impl EthTxAggregator {
         if self.config.fusaka_upgrade_block == Some(0) {
             return Ok(EthereumUpgradeState::Finished);
         }
-        let Some(fusaka_upgrade_block) = self.config.fusaka_upgrade_block else {
-            return Ok(EthereumUpgradeState::NotStarted);
-        };
 
-        let current_block = self.eth_client.block_number().await?.as_u64();
-        if current_block - self.config.fusaka_upgrade_safety_margin < fusaka_upgrade_block {
-            Ok(EthereumUpgradeState::NotStarted)
-        } else if current_block < fusaka_upgrade_block {
-            Ok(EthereumUpgradeState::Pending)
-        } else {
-            Ok(EthereumUpgradeState::Finished)
+        if self.config.fusaka_upgrade_timestamp.is_none()
+            && self.config.fusaka_upgrade_block.is_none()
+        {
+            return Ok(EthereumUpgradeState::NotStarted);
+        }
+
+        let current_block = self
+            .eth_client
+            .block(BlockId::Number(BlockNumber::Latest))
+            .await?
+            .expect("Latest block not found");
+
+        // Prioritize using the block number for the upgrade if both are set
+        // Timestamp is set with default, so block number takes precedence
+        match (
+            self.config.fusaka_upgrade_block,
+            self.config.fusaka_upgrade_timestamp,
+        ) {
+            (Some(fusaka_upgrade_block), _) => {
+                if current_block.number.unwrap().as_u64() - self.config.fusaka_upgrade_safety_margin
+                    < fusaka_upgrade_block
+                {
+                    Ok(EthereumUpgradeState::NotStarted)
+                } else if current_block.number.unwrap().as_u64()
+                    + self.config.fusaka_upgrade_safety_margin
+                    >= fusaka_upgrade_block
+                {
+                    Ok(EthereumUpgradeState::Finished)
+                } else {
+                    Ok(EthereumUpgradeState::Pending)
+                }
+            }
+            (_, Some(fusaka_upgrade_timestamp)) => {
+                let current_timestamp = current_block.timestamp.as_u64();
+                if current_timestamp
+                    < fusaka_upgrade_timestamp - self.config.fusaka_upgrade_safety_margin
+                {
+                    Ok(EthereumUpgradeState::NotStarted)
+                } else if current_timestamp + self.config.fusaka_upgrade_safety_margin
+                    >= fusaka_upgrade_timestamp
+                {
+                    Ok(EthereumUpgradeState::Finished)
+                } else {
+                    Ok(EthereumUpgradeState::Pending)
+                }
+            }
+            // All the values has already been checked this case is rather unreachable.
+            // But for safety reasons, it's better to not panic if it's not necessary
+            (_, _) => Ok(EthereumUpgradeState::NotStarted),
         }
     }
 
@@ -780,18 +819,17 @@ impl EthTxAggregator {
             op_restrictions.commit_restriction = reason;
             op_restrictions.precommit_restriction = reason;
             // For the migration from gateway to L1, we need to wait for all blocks to be executed
-            if let None | Some(SettlementLayer::L1(_)) = self.settlement_layer {
+            if matches!(self.settlement_layer, None | Some(SettlementLayer::L1(_))) {
                 op_restrictions.prove_restriction = reason;
                 op_restrictions.execute_restriction = reason;
-            } else {
-                // For the migration from gateway to L1, we need we need to ensure all batches containing interop roots get committed and executed.
-                if !self
-                    .is_waiting_for_batches_with_interop_roots_to_be_committed(storage)
-                    .await?
-                {
-                    op_restrictions.commit_restriction = None;
-                    op_restrictions.precommit_restriction = None;
-                }
+            } else if self
+                .is_waiting_for_batches_with_interop_roots_to_be_committed(storage)
+                .await?
+            {
+                // For the migration from gateway to L1, we need to ensure all batches containing interop roots
+                // get committed and executed. Once this happens, we can re-enable commit & precommit.
+                op_restrictions.commit_restriction = None;
+                op_restrictions.precommit_restriction = None;
             }
         }
 
