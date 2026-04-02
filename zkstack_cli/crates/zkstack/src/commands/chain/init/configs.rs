@@ -331,8 +331,8 @@ fn apply_bsc_optimizations_inline(
         serde_yaml::Value::Number(5_000_000_000u64.into())); // 5 Gwei
     sender_config.insert("aggregated_block_commit_deadline".into(), 
         serde_yaml::Value::Number(3.into())); // 3秒
-    sender_config.insert("pubdata_sending_mode".into(), 
-        serde_yaml::Value::String("CALLDATA".to_string()));
+    sender_config.insert("pubdata_sending_mode".into(),
+        serde_yaml::Value::String("BLOBS".to_string()));
     
     // Watcher配置
     let watcher_config = eth_config.entry("watcher".into())

@@ -65,14 +65,24 @@ impl NetworkAwareFeesOracle {
         time_in_mempool_in_l1_blocks: u32,
         operator_type: OperatorType,
     ) -> Result<EthFees, EthSenderError> {
-        // BSC 使用简单的 gas 价格模型
+        // BSC Blob 交易走标准 EIP-4844 路径（BSC 通过 BEP-336 支持 blob）
+        if operator_type == OperatorType::Blob {
+            tracing::debug!("BSC blob tx: delegating to standard EIP-1559 fee calculation");
+            return self.inner.calculate_fees(
+                previous_sent_tx,
+                time_in_mempool_in_l1_blocks,
+                operator_type,
+            );
+        }
+
+        // Non-blob BSC 交易使用简单的 gas 价格模型
         let mut base_fee_per_gas = BSC_DEFAULT_GAS_PRICE;
         let mut priority_fee_per_gas = BSC_DEFAULT_PRIORITY_FEE;
 
         // 如果有之前的交易，适当提高费用以确保新交易被处理
         if let Some(previous_tx) = previous_sent_tx {
             const PRICE_BUMP_MULTIPLIER: u64 = 2; // 100% 增加
-            
+
             base_fee_per_gas = base_fee_per_gas.max(
                 previous_tx.base_fee_per_gas * PRICE_BUMP_MULTIPLIER
             );
@@ -125,7 +135,7 @@ impl NetworkAwareFeesOracle {
         Ok(EthFees {
             base_fee_per_gas,
             priority_fee_per_gas,
-            blob_base_fee_per_gas: None, // BSC 不支持 blob
+            blob_base_fee_per_gas: None,
             max_gas_per_pubdata_price: None,
         })
     }
@@ -205,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bsc_fee_calculation() {
+    fn test_bsc_non_blob_fee_calculation() {
         let oracle = NetworkAwareFeesOracle::new(
             Arc::new(MockTxParamsProvider),
             100_000_000_000, // 100 Gwei max priority fee

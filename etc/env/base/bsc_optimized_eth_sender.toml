@@ -52,8 +52,8 @@ max_single_tx_gas = 8000000  # 从 6M 增加到 8M
 # BSC 的 gas 价格通常在 3-10 Gwei，设置更合理的上限
 max_acceptable_priority_fee_in_gwei = 50  # 从 100 Gwei 降低到 50 Gwei
 
-# BSC 优化：使用 Blobs 或 Calldata（根据成本选择）
-pubdata_sending_mode = "Calldata"  # BSC 上 calldata 可能更经济
+# BSC 支持 EIP-4844 (BEP-336)，使用 Blobs 模式
+pubdata_sending_mode = "Blobs"
 
 # 保持验证器设置
 is_verifier_pre_fflonk = true

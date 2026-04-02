@@ -22,7 +22,7 @@ wait_confirmations = 2                    # 2个区块确认 (6秒)
 max_txs_in_flight = 50                   # 增加并发交易数
 max_acceptable_priority_fee_in_gwei = 5   # BSC 5 Gwei上限
 aggregated_block_commit_deadline = 3     # BSC 3秒提交
-pubdata_sending_mode = "Calldata"        # BSC 使用Calldata模式
+pubdata_sending_mode = "Blobs"           # BSC 支持 EIP-4844 (BEP-336)
 
 [eth_watch]
 # BSC 快速事件监听配置
@@ -495,7 +495,7 @@ fn show_optimization_summary(network_type: &str, chain_id: u64) {
     println!("  ✅ 并行事件处理 (4个工作线程)");
     println!("  ✅ 智能费用计算 (0.1-5 Gwei动态调整)");
     println!("  ✅ 网络拥堵感知 (3 Gwei阈值)");
-    println!("  ✅ Calldata 数据发送模式");
+    println!("  ✅ Blob 数据发送模式 (BEP-336)");
     println!("  ✅ 快速 API 响应 (500ms)");
 }
 
@@ -578,7 +578,7 @@ fn apply_eth_sender_optimizations(
     sender_config.insert("max_txs_in_flight".into(), Value::Number(50.into()));
     sender_config.insert("max_acceptable_priority_fee_in_gwei".into(), Value::Number(5_000_000_000u64.into()));
     sender_config.insert("aggregated_block_commit_deadline".into(), Value::Number(3.into()));
-    sender_config.insert("pubdata_sending_mode".into(), Value::String("CALLDATA".to_string()));
+    sender_config.insert("pubdata_sending_mode".into(), Value::String("BLOBS".to_string()));
     sender_config.insert("max_acceptable_base_fee_in_wei".into(), Value::Number(5_000_000_000u64.into()));
     
     // BSC网络特定的确认配置
@@ -710,7 +710,7 @@ fn show_bsc_general_yaml_summary(network_type: &str, chain_id: u64) {
     println!("    - 并发交易数: 50");
     println!("    - 优先费用上限: 5 Gwei");
     println!("    - 批次提交间隔: 3秒");
-    println!("    - 数据发送模式: Calldata");
+    println!("    - 数据发送模式: Blobs (BEP-336)");
     println!("    - 确认区块数: 2个");
     
     println!("  ✅ ETH Watcher优化:");

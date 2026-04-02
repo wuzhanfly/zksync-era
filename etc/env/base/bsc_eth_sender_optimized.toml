@@ -37,8 +37,8 @@ timestamp_criteria_max_allowed_lag = 10  # 从 30 减少到 10
 # BSC 的 gas 价格通常在 3-10 Gwei
 max_acceptable_priority_fee_in_gwei = 20  # 从 100 Gwei 降低到 20 Gwei
 
-# BSC 优化：使用 Calldata 模式（BSC 上更经济）
-pubdata_sending_mode = "Calldata"
+# BSC 支持 EIP-4844 (BEP-336)，使用 Blobs 模式
+pubdata_sending_mode = "Blobs"
 
 # BSC 优化：缩短内存池时间上限
 # BSC 出块快，交易不会在内存池停留太久

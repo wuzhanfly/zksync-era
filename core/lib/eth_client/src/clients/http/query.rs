@@ -417,26 +417,27 @@ where
             fee_history.base_fee_per_gas
         };
 
-        // BSC 兼容性：BSC 不支持 EIP-4844 blob 交易，可能不返回 base_fee_per_blob_gas
+        // BSC 兼容性：BSC 的 fee history API 可能返回不完整的 blob 费用数据
         let blob_fees = if is_bsc_network {
-            // BSC 网络：如果没有 blob 费用数据，创建零值数组
             if fee_history.base_fee_per_blob_gas.is_empty() {
-                tracing::debug!("BSC network: creating zero blob fees for {} blocks", chunk_size + 1);
+                // BSC 节点未返回 blob 费用数据，用零值填充
+                // 这不影响 blob 交易发送，实际 blob fee 会在发送时从 gas adjuster 获取
+                tracing::debug!("BSC network: no blob fee data returned, padding with zeros for {} blocks", chunk_size + 1);
                 vec![U256::zero(); chunk_size + 1]
             } else if fee_history.base_fee_per_blob_gas.len() != chunk_size + 1 {
-                tracing::warn!(
-                    "BSC network: unexpected blob fee length {}, expected {}, padding with zeros",
+                tracing::debug!(
+                    "BSC network: blob fee length {}, expected {}, adjusting",
                     fee_history.base_fee_per_blob_gas.len(),
                     chunk_size + 1
                 );
                 let mut blob_fees = fee_history.base_fee_per_blob_gas;
-                blob_fees.resize(chunk_size + 1, U256::zero());
+                let fill_value = blob_fees.last().copied().unwrap_or(U256::zero());
+                blob_fees.resize(chunk_size + 1, fill_value);
                 blob_fees
             } else {
                 fee_history.base_fee_per_blob_gas
             }
         } else {
-            // 以太坊网络：保持原有严格检查
             // Per specification, the values should always be provided, and must be 0 for blocks
             // prior to EIP-4844.
             // https://ethereum.github.io/execution-apis/api-documentation/

@@ -257,9 +257,14 @@ impl GasAdjusterFeesOracle {
                             gas_result.priority_fee
                         }
                         "blob" => {
-                            // BSC 不使用 blob，返回最小值
-                            let blob_fee = 100_000_000u64; // 0.1 Gwei
-                            tracing::debug!("BSC blob fee (not used): {} wei", blob_fee);
+                            // BSC blob fee fallback
+                            let gas_result = tokio::task::block_in_place(|| {
+                                Handle::current().block_on(
+                                    self.bsc_provider.get_optimized_gas_price()
+                                )
+                            });
+                            let blob_fee = gas_result.base_fee; // 使用 base fee 作为 blob fee 的 fallback
+                            tracing::debug!("BSC blob fee fallback: {} wei ({} Gwei)", blob_fee, blob_fee / 1_000_000_000);
                             blob_fee
                         }
                         _ => {
@@ -426,7 +431,7 @@ impl GasAdjusterFeesOracle {
         Ok(EthFees {
             base_fee_per_gas,
             priority_fee_per_gas,
-            blob_base_fee_per_gas: None, // BSC 不支持 blob
+            blob_base_fee_per_gas: None,
             max_gas_per_pubdata_price: None,
         })
     }
@@ -658,9 +663,13 @@ impl EthFeesOracle for GasAdjusterFeesOracle {
             tracing::debug!("Using BSC optimized fee calculation for operator_type={:?}", operator_type);
             
             match operator_type {
-                OperatorType::NonBlob | OperatorType::Blob => {
-                    // BSC 不支持 blob，统一使用优化的费用计算
+                OperatorType::NonBlob => {
                     return self.calculate_bsc_optimized_fees(previous_sent_tx, time_in_mempool_in_l1_blocks);
+                }
+                OperatorType::Blob => {
+                    // BSC 支持 EIP-4844 (BEP-336)，使用标准 blob 费用计算
+                    tracing::debug!("BSC blob tx: using standard blob fee calculation");
+                    return self.calculate_fees_with_blob_sidecar(previous_sent_tx, time_in_mempool_in_l1_blocks);
                 }
                 OperatorType::Gateway => {
                     // Gateway 交易使用特殊处理，但应用 BSC 优化
