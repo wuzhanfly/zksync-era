@@ -17,7 +17,9 @@ use zksync_node_framework::{
     FromContext, IntoContext,
 };
 
-use crate::EthTxManager;
+use zksync_types::L1ChainId;
+
+use crate::{network_aware::detect_network_type, EthTxManager};
 
 /// Wiring layer for `eth_txs` managing
 ///
@@ -78,6 +80,17 @@ impl WiringLayer for EthTxManagerLayer {
         let eth_client_blobs = input.eth_client_blobs.map(|c| c.0);
         let l2_client = input.eth_client_gateway.map(|c| c.0);
 
+        let l1_chain_id = std::env::var("L1_CHAIN_ID")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(1); // default to Ethereum
+        let network_type = detect_network_type(L1ChainId(l1_chain_id));
+        tracing::info!(
+            "EthTxManager network_type={:?} (L1_CHAIN_ID={})",
+            network_type,
+            l1_chain_id
+        );
+
         let eth_tx_manager = EthTxManager::new(
             master_pool,
             input.sender_config.0,
@@ -85,6 +98,7 @@ impl WiringLayer for EthTxManagerLayer {
             Some(eth_client),
             eth_client_blobs,
             l2_client,
+            network_type,
         );
 
         // Insert circuit breaker.

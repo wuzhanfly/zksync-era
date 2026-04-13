@@ -22,14 +22,24 @@ pub(crate) async fn predict_blob_base_fee(
         .expect("Failed to get last sealed batch")
         .unwrap_or(L1BatchNumber::from(0));
 
-    let latest_block_number = client
+    let latest_block = match client
         .inner
         .block(BlockId::Number(BlockNumber::Latest))
         .await
-        .expect("Failed to get latest block")
-        .expect("Latest block is None")
-        .number
-        .expect("Latest block number is None");
+    {
+        Ok(Some(block)) => block,
+        Ok(None) => {
+            tracing::warn!("Latest block is None, returning last known blob fee");
+            return last_known_l1_blob_fee;
+        }
+        Err(err) => {
+            tracing::warn!(
+                "Failed to get latest block for blob fee prediction, returning last known fee: {err}"
+            );
+            return last_known_l1_blob_fee;
+        }
+    };
+    let latest_block_number = latest_block.number.expect("Latest block number is None");
 
     let (last_l1_commited_batch, last_commited_block_number) = connection
         .eth_sender_dal()

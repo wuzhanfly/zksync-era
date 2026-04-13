@@ -1,0 +1,99 @@
+# Optimized Dockerfile for zkSync Era server-v2
+# Improvements: smaller image size, faster build, better caching
+# syntax=docker/dockerfile:experimental
+
+# ============================================
+# Stage 1: Builder - Compile Rust binaries
+# ============================================
+FROM ghcr.io/matter-labs/zksync-build-base:latest AS builder
+
+# Build arguments for sccache
+ARG SCCACHE_GCS_BUCKET=""
+ARG SCCACHE_GCS_SERVICE_ACCOUNT=""
+ARG SCCACHE_GCS_RW_MODE=""
+ARG RUSTC_WRAPPER=""
+
+ENV SCCACHE_GCS_BUCKET=${SCCACHE_GCS_BUCKET}
+ENV SCCACHE_GCS_SERVICE_ACCOUNT=${SCCACHE_GCS_SERVICE_ACCOUNT}
+ENV SCCACHE_GCS_RW_MODE=${SCCACHE_GCS_RW_MODE}
+ENV RUSTC_WRAPPER=${RUSTC_WRAPPER}
+
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/zksync
+
+# Copy source code
+COPY . .
+
+# Build with optimizations
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/src/zksync/core/target \
+    cargo build \
+    --manifest-path ./core/Cargo.toml \
+    --release \
+    --features=rocksdb/io-uring \
+    --bin zksync_server \
+    --bin block_reverter \
+    --bin merkle_tree_consistency_checker && \
+    # Copy binaries to a known location
+    cp /usr/src/zksync/core/target/release/zksync_server /tmp/ && \
+    cp /usr/src/zksync/core/target/release/block_reverter /tmp/ && \
+    cp /usr/src/zksync/core/target/release/merkle_tree_consistency_checker /tmp/
+
+# Strip debug symbols to reduce size
+RUN strip /tmp/zksync_server && \
+    strip /tmp/block_reverter && \
+    strip /tmp/merkle_tree_consistency_checker
+
+# ============================================
+# Stage 2: Runtime - Minimal runtime image
+# ============================================
+FROM ghcr.io/matter-labs/zksync-runtime-base:latest
+
+# Install only required runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    liburing-dev \
+    ca-certificates \
+    curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
+# Create non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash zksync && \
+    mkdir -p /app/data /app/configs /app/logs && \
+    chown -R zksync:zksync /app
+
+# Expose ports
+EXPOSE 3050 3051 3071 3314
+
+# Copy binaries from builder
+COPY --from=builder --chown=zksync:zksync /tmp/zksync_server /usr/bin/
+COPY --from=builder --chown=zksync:zksync /tmp/block_reverter /usr/bin/
+COPY --from=builder --chown=zksync:zksync /tmp/merkle_tree_consistency_checker /usr/bin/
+
+# Copy contracts and configs
+COPY --chown=zksync:zksync contracts/system-contracts/zkout/ /contracts/system-contracts/zkout/
+COPY --chown=zksync:zksync contracts/l1-contracts/out/ /contracts/l1-contracts/out/
+COPY --chown=zksync:zksync contracts/l1-contracts/zkout/ /contracts/l1-contracts/zkout/
+COPY --chown=zksync:zksync contracts/l2-contracts/zkout/ /contracts/l2-contracts/zkout/
+COPY --chown=zksync:zksync proof-manager-contracts/out/ /proof-manager-contracts/out/
+COPY --chown=zksync:zksync etc/tokens/ /etc/tokens/
+COPY --chown=zksync:zksync etc/ERC20/ /etc/ERC20/
+COPY --chown=zksync:zksync etc/multivm_bootloaders/ /etc/multivm_bootloaders/
+COPY --chown=zksync:zksync core/lib/dal/migrations/ /migrations/
+COPY --chown=zksync:zksync prover/data/keys/fflonk_verification_snark_key.json /keys/fflonk_verification_snark_key.json
+
+# Switch to non-root user
+USER zksync
+WORKDIR /app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3071/health || exit 1
+
+# Default environment variables
+ENV RUST_LOG="warn,zksync=info" \
+    RUST_BACKTRACE="1"
+
+ENTRYPOINT ["zksync_server"]

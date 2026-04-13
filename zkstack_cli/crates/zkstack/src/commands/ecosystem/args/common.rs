@@ -100,7 +100,10 @@ async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
         _ => ("Unknown Network", "unknown"),
     };
 
-    println!("✅ L1 RPC health check passed - {} (Chain ID: {})", network_name, l1_chain_id);
+    println!(
+        "✅ L1 RPC health check passed - {} (Chain ID: {})",
+        network_name, l1_chain_id
+    );
 
     // Network-specific validation and optimization
     match network_type {
@@ -132,7 +135,10 @@ async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
 
             // Check gas price for BSC networks
             let gas_price = l1_provider.get_gas_price().await?;
-            println!("⛽ Current gas price: {} Gwei", gas_price.as_u64() / 1_000_000_000);
+            println!(
+                "⛽ Current gas price: {} Gwei",
+                gas_price.as_u64() / 1_000_000_000
+            );
         }
         "ethereum" => {
             println!("🔗 Detected Ethereum network");
@@ -152,4 +158,3 @@ async fn check_l1_rpc_health(l1_rpc_url: &str) -> anyhow::Result<()> {
 
     Ok(())
 }
-

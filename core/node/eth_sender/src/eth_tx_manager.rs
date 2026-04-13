@@ -22,9 +22,10 @@ use zksync_types::{
 use super::{metrics::METRICS, EthSenderError};
 use crate::{
     abstract_l1_interface::{AbstractL1Interface, OperatorNonce, OperatorType, RealL1Interface},
-    eth_fees_oracle::{BscGasPriceProvider, EthFees, EthFeesOracle, GasAdjusterFeesOracle},
+    eth_fees_oracle::{EthFees, EthFeesOracle, GasAdjusterFeesOracle},
     health::{EthTxDetails, EthTxManagerHealthDetails},
     metrics::TransactionType,
+    network_aware::NetworkType,
 };
 
 /// The component is responsible for managing sending eth_txs attempts.
@@ -50,6 +51,7 @@ impl EthTxManager {
         ethereum_client: Option<Box<dyn BoundEthInterface>>,
         ethereum_client_blobs: Option<Box<dyn BoundEthInterface>>,
         l2_client: Option<Box<dyn BoundEthInterface>>,
+        network_type: NetworkType,
     ) -> Self {
         let ethereum_client = ethereum_client.map(|eth| eth.for_component("eth_tx_manager"));
         let ethereum_client_blobs =
@@ -67,7 +69,7 @@ impl EthTxManager {
             max_acceptable_priority_fee_in_gwei: config.max_acceptable_priority_fee_in_gwei,
             time_in_mempool_in_l1_blocks_cap,
             max_acceptable_base_fee_in_wei: config.max_acceptable_base_fee_in_wei,
-            bsc_provider: BscGasPriceProvider::new(gas_adjuster),
+            network_type,
         };
         let l1_interface = Box::new(RealL1Interface {
             ethereum_client,
@@ -309,7 +311,7 @@ impl EthTxManager {
                     // Settlement mode is L1.
                     (gas_without_pubdata
                         + ((L1_GAS_PER_PUBDATA_BYTE + L1_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS)
-                        * tx.raw_tx.len() as u32) as u64)
+                            * tx.raw_tx.len() as u32) as u64)
                         .into()
                 }
                 OperatorType::Gateway => {
@@ -344,8 +346,8 @@ impl EthTxManager {
         if let Some(max_gas_per_pubdata_price) = max_gas_per_pubdata_price {
             (gas_without_pubdata
                 + ((max_gas_per_pubdata_price
-                + GATEWAY_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS as u64)
-                * tx.raw_tx.len() as u64))
+                    + GATEWAY_CALLDATA_PROCESSING_ROLLUP_OVERHEAD_GAS as u64)
+                    * tx.raw_tx.len() as u64))
                 .into()
         } else {
             self.config.max_aggregated_tx_gas.into()
@@ -583,7 +585,7 @@ impl EthTxManager {
                     last_finalized_tx: EthTxDetails::new(tx, Some((&tx_status).into())),
                     finalized_block: blocks.finalized,
                 }
-                    .into(),
+                .into(),
             );
         }
 
@@ -824,7 +826,7 @@ impl EthTxManager {
                 time_in_mempool_in_l1_blocks,
                 l1_block_numbers.latest,
             )
-                .await?;
+            .await?;
         }
         Ok(())
     }
@@ -835,11 +837,16 @@ impl EthTxManager {
         // aggregator makes sure that corresponding Commit transaction is confirmed before creating
         // a PublishProof transaction
         for operator_type in self.l1_interface.supported_operator_types() {
-            let l1_block_numbers = self
-                .l1_interface
-                .get_l1_block_numbers(operator_type)
-                .await
-                .unwrap();
+            let l1_block_numbers = match self.l1_interface.get_l1_block_numbers(operator_type).await
+            {
+                Ok(numbers) => numbers,
+                Err(err) => {
+                    tracing::warn!(
+                        "Failed to get L1 block numbers for {operator_type:?} operator, skipping iteration: {err}"
+                    );
+                    continue;
+                }
+            };
             tracing::debug!(
                 "Loop iteration at block {} for {operator_type:?} operator",
                 l1_block_numbers.latest

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  tmai-server:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile.server
+    container_name: tmai-server
+    environment:
+      # L1 配置
+      L1_CHAIN_ID: 97
+      L1_RPC_URL: http://13.212.114.138:10575
+      L1_WS_URL: ws://13.212.114.138:10576
+      
+      # 数据库配置
+      DATABASE_HOST: localhost
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: notsecurepassword
+      DATABASE_URL: postgres://postgres:notsecurepassword@localhost:5432/zksync_server_bsc_testnet_tmai_chain
+      
+      # Base Token
+      BASE_TOKEN_ADDRESS: "0xC42F240C256F5FB97346b9d69d10E2e1D77b2EBa"
+      
+      # 钱包私钥
+      OPERATOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      GOVERNOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      DEPLOYER_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      
+      # 日志
+      RUST_LOG: info,zksync=debug
+      RUST_BACKTRACE: 1
+    network_mode: host
+    volumes:
+      - ./tmai_ecosystem:/app/tmai_ecosystem
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3071/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

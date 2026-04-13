@@ -1,56 +1,46 @@
 {
-  "name": "zksync-root",
+  "name": "tmai-chain-deployment",
   "version": "1.0.0",
-  "license": "MIT",
-  "private": true,
-  "workspaces": {
-    "packages": [
-      "contracts",
-      "contracts/l1-contracts",
-      "contracts/da-contracts",
-      "contracts/l2-contracts",
-      "contracts/system-contracts",
-      "etc/ERC20",
-      "etc/utils",
-      "core/tests/revert-test",
-      "core/tests/recovery-test",
-      "core/tests/upgrade-test",
-      "core/tests/gateway-migration-test/",
-      "core/tests/ts-integration",
-      "core/tests/highlevel-test-tools",
-      "infrastructure/protocol-upgrade"
-    ],
-    "nohoist": [
-      "**/@types/jest",
-      "**/@types/mocha"
-    ]
-  },
+  "description": "tMai Chain deployment and testing scripts for ZKSync-Era",
   "scripts": {
-    "l1-contracts": "yarn workspace l1-contracts",
-    "l2-contracts": "yarn workspace l2-contracts",
-    "da-contracts": "yarn workspace da-contracts",
-    "revert-test": "yarn workspace revert-test",
-    "upgrade-test": "yarn workspace upgrade-test",
-    "gateway-migration-test": "yarn workspace gateway-migration-test",
-    "recovery-test": "yarn workspace recovery-test",
-    "ts-integration": "yarn workspace ts-integration",
-    "utils": "yarn workspace utils",
-    "fmt:check": "prettier --check \"**.{js,jsx,ts,tsx,vue,md}\" --cache",
-    "fmt": "prettier --write \"**.{js,jsx,ts,tsx,vue,md}\" --cache",
-    "highlevel-test-tools": "yarn workspace highlevel-test-tools"
+    "test": "ts-node scripts/test_tmai_bridge.ts",
+    "test:bridge": "ts-node scripts/test_tmai_bridge.ts",
+    "test:stress": "hardhat test test/stress-test.js --network tmaiChain",
+    "stress": "hardhat run scripts/advanced-stress-test.js --network tmaiChain",
+    "deploy": "bash scripts/full_deployment.sh",
+    "setup": "bash scripts/setup_tmai_chain.sh",
+    "mint": "bash scripts/mint_tmai_tokens.sh",
+    "deploy:contracts": "bash scripts/deploy_tmai_contracts.sh",
+    "start": "bash scripts/start_tmai_chain.sh",
+    "stop": "bash scripts/stop_tmai_chain.sh",
+    "verify": "bash scripts/verify_deployment.sh",
+    "logs": "tail -f logs/tmai-chain-*.log"
+  },
+  "keywords": [
+    "zksync",
+    "zksync-era",
+    "tmai",
+    "bsc",
+    "layer2",
+    "blockchain"
+  ],
+  "author": "ZKSync-Era Team",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.0",
+    "js-yaml": "^4.1.1",
+    "zksync-ethers": "^6.8.0"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.7.4",
-    "@typescript-eslint/parser": "^4.10.0",
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.16.0",
-    "eslint-config-alloy": "^3.8.2",
-    "markdownlint-cli": "^0.24.0",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^3.3.3",
-    "prettier-plugin-solidity": "=1.0.0-dev.22",
-    "solhint": "^3.3.2",
-    "sql-formatter": "^13.1.0"
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@types/node": "^20.11.0",
+    "hardhat": "^2.28.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
-  "packageManager": "yarn@1.22.19"
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
 }

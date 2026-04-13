@@ -4,7 +4,9 @@ use zkstack_cli_common::{forge::ForgeScript, wallets::Wallet};
 
 use crate::{
     consts::MINIMUM_BALANCE_FOR_WALLET,
-    messages::{msg_address_doesnt_have_enough_money_prompt_with_network, msg_wallet_private_key_not_set},
+    messages::{
+        msg_address_doesnt_have_enough_money_prompt_with_network, msg_wallet_private_key_not_set,
+    },
 };
 
 pub enum WalletOwner {
@@ -53,7 +55,7 @@ fn infer_l1_network_from_rpc_url(rpc_url: &str) -> Option<zkstack_cli_types::L1N
     } else if rpc_url.contains("holesky") {
         return Some(zkstack_cli_types::L1Network::Holesky);
     }
-    
+
     // For unknown URLs, try to detect network by Chain ID
     match get_chain_id_from_rpc(rpc_url) {
         Ok(chain_id) => {
@@ -64,16 +66,19 @@ fn infer_l1_network_from_rpc_url(rpc_url: &str) -> Option<zkstack_cli_types::L1N
                 97 => {
                     eprintln!("Detected BSC Testnet (Chain ID: 97)");
                     Some(zkstack_cli_types::L1Network::BscTestnet)
-                },
+                }
                 11155111 => Some(zkstack_cli_types::L1Network::Sepolia),
                 17000 => Some(zkstack_cli_types::L1Network::Holesky),
                 9 => Some(zkstack_cli_types::L1Network::Localhost),
                 _ => {
-                    eprintln!("Warning: Unknown chain ID: {}, defaulting to Mainnet", chain_id);
+                    eprintln!(
+                        "Warning: Unknown chain ID: {}, defaulting to Mainnet",
+                        chain_id
+                    );
                     Some(zkstack_cli_types::L1Network::Mainnet)
                 }
             }
-        },
+        }
         Err(e) => {
             // Fallback to mainnet if chain ID detection fails
             eprintln!("Warning: Failed to detect chain ID from RPC URL: {}, error: {}, defaulting to Mainnet", rpc_url, e);
@@ -85,7 +90,7 @@ fn infer_l1_network_from_rpc_url(rpc_url: &str) -> Option<zkstack_cli_types::L1N
 /// Get Chain ID from RPC URL by making an eth_chainId call
 fn get_chain_id_from_rpc(rpc_url: &str) -> Result<u64, Box<dyn std::error::Error>> {
     use std::process::Command;
-    
+
     // Use curl to make eth_chainId RPC call with timeout
     let output = Command::new("curl")
         .arg("-s")
@@ -101,16 +106,19 @@ fn get_chain_id_from_rpc(rpc_url: &str) -> Result<u64, Box<dyn std::error::Error
         .arg(r#"{"jsonrpc":"2.0","method":"eth_chainId","params":[],"id":1}"#)
         .arg(rpc_url)
         .output()?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        eprintln!("RPC call failed with status: {}, stderr: {}", output.status, stderr);
+        eprintln!(
+            "RPC call failed with status: {}, stderr: {}",
+            output.status, stderr
+        );
         return Err(format!("RPC call failed: {}", stderr).into());
     }
-    
+
     let response = String::from_utf8(output.stdout)?;
     eprintln!("RPC response: {}", response);
-    
+
     // Parse JSON response to extract chain ID
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response) {
         if let Some(result) = json.get("result") {
@@ -126,11 +134,14 @@ fn get_chain_id_from_rpc(rpc_url: &str) -> Result<u64, Box<dyn std::error::Error
             return Err(format!("RPC error: {}", error).into());
         }
     }
-    
+
     Err(format!("Failed to parse chain ID from RPC response: {}", response).into())
 }
 
-pub async fn check_the_balance_with_network(forge: &ForgeScript, l1_network: Option<zkstack_cli_types::L1Network>) -> anyhow::Result<()> {
+pub async fn check_the_balance_with_network(
+    forge: &ForgeScript,
+    l1_network: Option<zkstack_cli_types::L1Network>,
+) -> anyhow::Result<()> {
     const MSG_CONTINUE: &str = "Proceed with the deployment anyway";
     const MSG_CHECK_BALANCE: &str = "Check the balance again";
     const MSG_EXIT: &str = "Exit";
@@ -150,13 +161,17 @@ pub async fn check_the_balance_with_network(forge: &ForgeScript, l1_network: Opt
             return Ok(());
         }
 
-        let prompt_msg =
-            msg_address_doesnt_have_enough_money_prompt_with_network(&address, balance, expected_balance, l1_network);
+        let prompt_msg = msg_address_doesnt_have_enough_money_prompt_with_network(
+            &address,
+            balance,
+            expected_balance,
+            l1_network,
+        );
         match zkstack_cli_common::PromptSelect::new(
             &prompt_msg,
             [MSG_CONTINUE, MSG_CHECK_BALANCE, MSG_EXIT],
         )
-            .ask()
+        .ask()
         {
             MSG_CONTINUE => return Ok(()),
             MSG_CHECK_BALANCE => continue,

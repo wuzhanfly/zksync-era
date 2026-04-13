@@ -94,10 +94,9 @@ const TOO_MANY_RESULTS_ALCHEMY: &str = "response size exceeded";
 const TOO_MANY_RESULTS_RETH: &str = "length limit exceeded";
 const TOO_BIG_RANGE_RETH: &str = "query exceeds max block range";
 const TOO_MANY_RESULTS_CHAINSTACK: &str = "range limit exceeded";
-const TOO_MANY_RESULTS_BSC: &str = "limit exceeded";  // BSC network specific error
-const TOO_BIG_RANGE_BSC: &str = "Block range is too large";  // BSC specific range error
+const TOO_MANY_RESULTS_BSC: &str = "limit exceeded"; // BSC network specific error
+const TOO_BIG_RANGE_BSC: &str = "Block range is too large"; // BSC specific range error
 const REQUEST_REJECTED_503: &str = "Request rejected `503`";
-
 
 /// Implementation of [`EthClient`] based on HTTP JSON-RPC.
 #[derive(Debug, Clone)]
@@ -257,7 +256,9 @@ where
                 // divide range into two halves and recursively fetch them
                 // For BSC network, use optimized chunks to balance efficiency and reliability
                 let range_size = to_number - from_number;
-                let mid = if err_message.contains(TOO_MANY_RESULTS_BSC) || err_message.contains("Block range is too large") {
+                let mid = if err_message.contains(TOO_MANY_RESULTS_BSC)
+                    || err_message.contains("Block range is too large")
+                {
                     // For BSC, use optimized chunks (max 5000 blocks per request)
                     // This balances efficiency with reliability
                     from_number + std::cmp::min(5_000u64.into(), range_size / 2u64)

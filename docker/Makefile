@@ -82,7 +82,7 @@ build-contract-verifier: check-tools prepare-contracts prepare-keys
 
 build-server-v2: check-tools prepare-contracts prepare-keys
 	$(DOCKER_BUILD_CMD) --file server-v2/Dockerfile --load \
-		--tag server-v2:$(PROTOCOL_VERSION) $(CONTEXT)
+		--tag server-v2-blbos:$(PROTOCOL_VERSION) $(CONTEXT)
 
 build-circuit-prover-gpu: check-tools prepare-keys
 	$(DOCKER_BUILD_CMD) --file circuit-prover-gpu/Dockerfile --load \

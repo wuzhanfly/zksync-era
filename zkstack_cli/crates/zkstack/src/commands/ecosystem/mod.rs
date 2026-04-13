@@ -15,11 +15,11 @@ use crate::{
 };
 
 pub mod args;
-pub(crate) mod build_transactions;
 pub(crate) mod bsc_commands;
 pub(crate) mod bsc_fee_calculator;
 pub(crate) mod bsc_monitor;
 pub(crate) mod bsc_utils;
+pub(crate) mod build_transactions;
 mod change_default;
 mod common;
 mod create;
@@ -83,7 +83,6 @@ pub(crate) async fn run(shell: &Shell, args: EcosystemCommands) -> anyhow::Resul
         EcosystemCommands::SetupObservability => setup_observability::run(shell),
         EcosystemCommands::RegisterCTM(args) => register_ctm::run(args, shell).await,
         EcosystemCommands::Bsc(args) => bsc_commands::run(shell, args.clone()).await,
-
     }
 }
 

@@ -84,7 +84,6 @@ impl InitArgs {
             })
         };
 
-
         let l1_rpc_url = if let Some(url) = self.l1_rpc_url {
             // Use explicitly provided URL (from ecosystem init or command line)
             url

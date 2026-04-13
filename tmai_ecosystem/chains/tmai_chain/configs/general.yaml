@@ -1,0 +1,291 @@
+api:
+  healthcheck:
+    port: 3071
+  merkle_tree:
+    port: 3072
+  web3_json_rpc:
+    api_namespaces:
+      - en
+      - eth
+      - net
+      - web3
+      - zks
+      - pubsub
+      - debug
+      - unstable
+    estimate_gas_acceptable_overestimation: 5000
+    estimate_gas_scale_factor: 1.3
+    filters_disabled: false
+    filters_limit: 10000
+    gas_price_scale_factor: 1.5
+    http_port: 3050
+    http_url: http://127.0.0.1:3050/
+    max_nonce_ahead: 200
+    max_tx_size: 1000000
+    pubsub_polling_interval: 200
+    req_entities_limit: 10000
+    subscriptions_limit: 10000
+    ws_port: 3051
+    ws_url: ws://127.0.0.1:3051/
+base_token_adjuster:
+  default_priority_fee_per_gas: 1000000
+  max_tx_gas: 80000
+  price_cache_update_interval_ms: 2000
+  price_polling_interval_ms: 30000
+basic_witness_input_producer:
+  db_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/db/main/basic_witness_input_producer
+  first_processed_batch: 0
+  window_size: 3
+circuit_breaker:
+  http_req_max_retry_number: 10
+  http_req_retry_interval_sec: 2
+  replication_lag_limit_sec: 100
+  sync_interval_ms: 120000
+commitment_generator:
+  max_parallelism: 10
+consensus:
+  genesis_spec:
+    chain_id: 9720
+    leader: validator:public:bls12_381:8ca30431600690ae885f69e1d18d71de754272f27f09a9877d9c0fbe4320607568328c4bea08ea468a0cd2dbd86a535b037e0fa99fe2a675296aa722db024538ca17a87d0c8bb5474abb536b99c569429d1ab77ab89654cc4cb6621966952e7e
+    protocol_version: 1
+    validators:
+      - key: validator:public:bls12_381:8ca30431600690ae885f69e1d18d71de754272f27f09a9877d9c0fbe4320607568328c4bea08ea468a0cd2dbd86a535b037e0fa99fe2a675296aa722db024538ca17a87d0c8bb5474abb536b99c569429d1ab77ab89654cc4cb6621966952e7e
+        weight: 1
+  gossip_dynamic_inbound_limit: 100
+  max_payload_size: 2500000
+  port: 3054
+  public_addr: 127.0.0.1:3054
+  server_addr: 127.0.0.1:3054
+contract_verifier:
+  compilation_timeout: 240
+  port: 3070
+  prometheus_port: 3318
+core_object_store:
+  file_backed_base_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/artifacts/
+  max_retries: 10
+  mode: FileBacked
+da_dispatcher:
+  max_retries: 5
+  max_rows_to_dispatch: 100
+  polling_interval_ms: 5000
+data_handler:
+  gateway_api_url: http://127.0.0.1:3322
+  http_port: 3320
+  proof_generation_timeout_in_secs: 18000
+  proving_mode: PROVER_CLUSTER
+db:
+  experimental:
+    state_keeper_db_block_cache_capacity_mb: 256
+  merkle_tree:
+    block_cache_size_mb: 256
+    max_l1_batches_per_iter: 50
+    memtable_capacity_mb: 256
+    mode: FULL
+    multi_get_chunk_size: 1000
+    path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/db/main/tree
+    stalled_writes_timeout_sec: 60
+  state_keeper_db_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/db/main/state_keeper
+eth:
+  gas_adjuster:
+    default_priority_fee_per_gas: 1000000000
+    internal_l1_pricing_multiplier: 0.8
+    internal_pubdata_pricing_multiplier: 1.0
+    max_base_fee_samples: 10
+    num_samples_for_blob_base_fee_estimate: 10
+    poll_period: 5
+    pricing_formula_parameter_a: 1.2
+    pricing_formula_parameter_b: 1.005
+    time_in_mempool_multiplier_cap: 5
+  sender:
+    aggregate_tx_poll_period: 300 ms
+    aggregated_block_commit_deadline: 3
+    aggregated_block_execute_deadline: 5
+    aggregated_block_prove_deadline: 5
+    fusaka_upgrade_block: 999999999
+    fusaka_upgrade_safety_margin: 0
+    gas_limit_mode: CALCULATED
+    is_verifier_pre_fflonk: true
+    max_acceptable_base_fee_in_wei: 10000000000
+    max_acceptable_priority_fee_in_gwei: 1000000000
+    max_aggregated_blocks_to_commit: 1
+    max_aggregated_blocks_to_execute: 10
+    max_aggregated_tx_gas: 15000000
+    max_txs_in_flight: 50
+    proof_sending_mode: SKIP_EVERY_PROOF
+    pubdata_sending_mode: BLOBS
+    timestamp_criteria_max_allowed_lag: 30
+    tx_poll_period: 300 ms
+    use_fusaka_blob_format: false
+  watcher:
+    confirmations_for_eth_event: 2
+    eth_node_poll_interval: 1500
+eth_proof_manager:
+  default_priority_fee_per_gas: 1000000
+  event_expiration_blocks: 1000
+  event_poll_interval: 10000 ms
+  http_rpc_url: http://127.0.0.1:3050
+  l2_chain_id: 271
+  max_acceptable_priority_fee_in_gwei: 100000000000
+  max_reward: 10
+  max_tx_gas: 1000000
+  max_tx_sending_attempts: 5
+  object_store:
+    file_backed_base_path: artifacts
+    max_retries: 100
+    mode: FileBacked
+  path_to_fflonk_verification_key: ./prover/data/keys/fflonk_verification_snark_key.json
+  proof_generation_timeout: 7200000 ms
+  proof_request_timeout: 120000 ms
+  request_sending_interval: 10000 ms
+  tx_receipt_checking_max_attempts: 10
+  tx_receipt_checking_sleep: 1000 ms
+  tx_sending_sleep: 1000 ms
+experimental_vm:
+  playground:
+    db_path: ./db/main/vm_playground
+    fast_vm_mode: SHADOW
+    first_processed_batch: 0
+    window_size: 1
+  state_keeper_fast_vm_mode: OLD
+external_price_api_client:
+  client_timeout_ms: 10000
+  forced_denominator: 1000
+  forced_numerator: 314
+  source: forced
+external_proof_integration_api:
+  http_port: 3073
+gateway_migrator:
+  eth_node_poll_interval: 300 ms
+house_keeper:
+  l1_batch_metrics_reporting_interval_ms: 10000
+mempool:
+  capacity: 20000000
+  delay_interval: 50
+  remove_stuck_txs: true
+  stuck_tx_timeout: 172800
+  sync_batch_size: 2000
+  sync_interval_ms: 10
+observability:
+  log_directives: warn,zksync=info,zksync_config=debug,zksync_commitment_generator=debug,zksync_server=debug,zksync_contract_verifier=debug,zksync_eth_watch=debug,zksync_state=debug,zksync_utils=debug,zksync_mempool=debug,zksync_web3_decl=debug,zksync_health_check=debug,vise_exporter=error,snapshots_creator=debug,zksync_base_token_adjuster=debug,zksync_external_price_api=debug
+  log_format: plain
+operations_manager:
+  delay_interval: 100
+postgres:
+  max_connections: 200
+  statement_timeout_sec: 300
+  test:
+    prover_url: postgres://postgres:notsecurepassword@localhost:5433/prover_local_test
+    server_url: postgres://postgres:notsecurepassword@localhost:5433/zksync_local_test
+prometheus:
+  listener_port: 3314
+  push_interval_ms: 100
+  pushgateway_url: http://127.0.0.1:9091
+proof_compressor:
+  compression_mode: 5
+  generation_timeout_in_secs: 3600
+  max_attempts: 5
+  prometheus_listener_port: 3321
+  prometheus_push_interval_ms: 100
+  prometheus_pushgateway_url: http://127.0.0.1:9091
+  universal_setup_download_url: https://storage.googleapis.com/matterlabs-setup-keys-us/setup-keys/setup_compact.key
+  universal_setup_path: keys/setup/setup_compact.key
+  verify_wrapper_proof: true
+protective_reads_writer:
+  db_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/db/main/protective_reads
+  first_processed_batch: 0
+  window_size: 3
+prover:
+  generation_timeout_in_secs: 600
+  max_attempts: 10
+  prometheus_port: 3315
+  prover_object_store:
+    file_backed_base_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/artifacts/
+    max_retries: 10
+    mode: FileBacked
+  setup_data_path: data/keys
+prover_gateway:
+  api_poll_duration_secs: 15
+  api_url: http://127.0.0.1:3320
+  port: 3322
+  prometheus_listener_port: 3310
+  prometheus_push_interval_ms: 100
+  prometheus_pushgateway_url: http://127.0.0.1:9091
+prover_job_monitor:
+  gpu_prover_archiver_archive_prover_after_ms: 172800000
+  gpu_prover_archiver_run_interval_ms: 86400000
+  graceful_shutdown_timeout_ms: 5000
+  http_port: 3074
+  max_db_connections: 9
+  prometheus_port: 3317
+  proof_compressor_job_requeuer_run_interval_ms: 10000
+  proof_compressor_queue_reporter_run_interval_ms: 10000
+  prover_job_requeuer_run_interval_ms: 10000
+  prover_jobs_archiver_archive_jobs_after_ms: 172800000
+  prover_jobs_archiver_run_interval_ms: 1800000
+  prover_queue_reporter_run_interval_ms: 10000
+  witness_generator_job_requeuer_run_interval_ms: 10000
+  witness_generator_queue_reporter_run_interval_ms: 10000
+  witness_job_queuer_run_interval_ms: 10000
+pruning:
+  chunk_size: 10
+  data_retention_sec: 604800
+  enabled: true
+  removal_delay_sec: 60
+snapshot_creator:
+  concurrent_queries_count: 25
+  object_store:
+    file_backed_base_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/artifacts/
+    max_retries: 10
+    mode: FileBacked
+  storage_logs_chunk_size: 1000000
+snapshot_recovery:
+  enabled: false
+  experimental:
+    drop_storage_key_preimages: true
+    tree_recovery_parallel_persistence_buffer: 1
+  object_store:
+    file_backed_base_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/artifacts/
+    max_retries: 100
+    mode: FileBacked
+  postgres:
+    max_concurrency: 10
+  tree:
+    chunk_size: 200000
+state_keeper:
+  batch_overhead_l1_gas: 800000
+  block_commit_deadline_ms: 2500
+  close_block_at_eth_params_percentage: 0.95
+  close_block_at_gas_percentage: 0.95
+  close_block_at_geometry_percentage: 0.95
+  compute_overhead_part: 0
+  fee_model_version: V2
+  max_allowed_l2_tx_gas_limit: 15000000000
+  max_circuits_per_batch: 27000
+  max_gas_per_batch: 300000000
+  max_pubdata_per_batch: 500000
+  max_single_tx_gas: 15000000
+  miniblock_commit_deadline_ms: 800
+  miniblock_max_payload_size: 3000000
+  miniblock_seal_queue_capacity: 15
+  minimal_l2_gas_price: 100000000
+  protective_reads_persistence_enabled: false
+  pubdata_overhead_part: 1
+  reject_tx_at_eth_params_percentage: 0.95
+  reject_tx_at_gas_percentage: 0.95
+  reject_tx_at_geometry_percentage: 0.95
+  save_call_traces: true
+  transaction_slots: 5000
+  validation_computational_gas_limit: 300000
+tee_proof_data_handler:
+  batch_permanently_ignored_timeout_in_hours: 240
+  http_port: 4320
+  proof_generation_timeout_in_secs: 60
+tee_prover_gateway:
+  api_url: http://127.0.0.1:4320
+timestamp_asserter:
+  min_time_till_end_sec: 60
+witness_generator:
+  generation_timeout_in_secs: 900
+  max_attempts: 10
+  max_circuits_in_flight: 500
+  prometheus_listener_port: 3116

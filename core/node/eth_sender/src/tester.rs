@@ -26,6 +26,7 @@ use zksync_types::{
 use crate::{
     abstract_l1_interface::OperatorType,
     aggregated_operations::{AggregatedOperation, L1BatchAggregatedOperation},
+    network_aware::NetworkType,
     tests::{default_l1_batch_metadata, l1_batch_with_metadata},
     Aggregator, EthTxAggregator, EthTxManager,
 };
@@ -306,6 +307,7 @@ impl EthSenderTester {
             Some(gateway.clone()),
             Some(gateway_blobs.clone()),
             None,
+            NetworkType::Ethereum,
         );
 
         let connection_pool_clone = connection_pool.clone();
@@ -344,6 +346,7 @@ impl EthSenderTester {
             None,
             None,
             Some(self.l2_gateway.clone()),
+            NetworkType::Ethereum,
         );
         self.settlement_layer = SettlementLayer::Gateway(10.into());
         tracing::info!("Switched eth-sender tester to use Gateway!");

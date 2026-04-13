@@ -45,7 +45,10 @@ mod tests {
         // 以太坊网络
         assert_eq!(detect_network_type(L1ChainId(1)), NetworkType::Ethereum);
         assert_eq!(detect_network_type(L1ChainId(5)), NetworkType::Ethereum);
-        assert_eq!(detect_network_type(L1ChainId(11155111)), NetworkType::Ethereum);
+        assert_eq!(
+            detect_network_type(L1ChainId(11155111)),
+            NetworkType::Ethereum
+        );
 
         // BSC 网络
         assert_eq!(detect_network_type(L1ChainId(56)), NetworkType::Bsc);

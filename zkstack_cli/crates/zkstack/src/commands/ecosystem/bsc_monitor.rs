@@ -37,7 +37,7 @@ pub struct PerformanceRecommendation {
 #[derive(Debug, Clone)]
 pub struct BlockTimeAnalysis {
     pub average_block_time: f64,
-    pub block_time_variance: f64,
+    pub _block_time_variance: f64,
     pub is_stable: bool,
 }
 
@@ -86,17 +86,23 @@ impl BscNetworkMonitor {
         // 获取基础网络信息
         let block_number = provider.get_block_number().await?;
         let gas_price = provider.get_gas_price().await?;
-        let latest_block = provider.get_block(block_number).await?
+        let latest_block = provider
+            .get_block(block_number)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("无法获取最新区块"))?;
 
         // 分析区块时间
-        let block_time_analysis = self.analyze_block_times(&provider, U256::from(block_number.as_u64())).await?;
+        let block_time_analysis = self
+            .analyze_block_times(&provider, U256::from(block_number.as_u64()))
+            .await?;
 
         // 计算网络利用率
         let network_utilization = self.calculate_network_utilization(&latest_block);
 
         // 估算 TPS
-        let tps_estimate = self.estimate_tps(&provider, U256::from(block_number.as_u64())).await?;
+        let tps_estimate = self
+            .estimate_tps(&provider, U256::from(block_number.as_u64()))
+            .await?;
 
         // 计算性能评分
         let performance_score = self.calculate_performance_score(
@@ -151,7 +157,8 @@ impl BscNetworkMonitor {
                 provider.get_block(block_num.as_u64()).await?,
                 provider.get_block(prev_block_num.as_u64()).await?,
             ) {
-                let block_time = block.timestamp.as_u64() as f64 - prev_block.timestamp.as_u64() as f64;
+                let block_time =
+                    block.timestamp.as_u64() as f64 - prev_block.timestamp.as_u64() as f64;
                 block_times.push(block_time);
             }
         }
@@ -159,26 +166,31 @@ impl BscNetworkMonitor {
         if block_times.is_empty() {
             return Ok(BlockTimeAnalysis {
                 average_block_time: 3.0, // BSC 默认出块时间
-                block_time_variance: 0.0,
+                _block_time_variance: 0.0,
                 is_stable: true,
             });
         }
 
         let average = block_times.iter().sum::<f64>() / block_times.len() as f64;
-        let variance = block_times.iter()
+        let variance = block_times
+            .iter()
             .map(|&time| (time - average).powi(2))
-            .sum::<f64>() / block_times.len() as f64;
+            .sum::<f64>()
+            / block_times.len() as f64;
 
         let is_stable = variance < 1.0; // 如果方差小于 1 秒，认为是稳定的
 
         Ok(BlockTimeAnalysis {
             average_block_time: average,
-            block_time_variance: variance,
+            _block_time_variance: variance,
             is_stable,
         })
     }
 
-    fn calculate_network_utilization(&self, block: &ethers::types::Block<ethers::types::H256>) -> f64 {
+    fn calculate_network_utilization(
+        &self,
+        block: &ethers::types::Block<ethers::types::H256>,
+    ) -> f64 {
         let gas_used = block.gas_used;
         let gas_limit = block.gas_limit;
         gas_used.as_u64() as f64 / gas_limit.as_u64() as f64
@@ -201,10 +213,11 @@ impl BscNetworkMonitor {
             let block_num = current_block - i;
             if let Some(block) = provider.get_block_with_txs(block_num.as_u64()).await? {
                 total_transactions += block.transactions.len() as u64;
-                
+
                 if i > 0 {
                     if let Some(prev_block) = provider.get_block((block_num - 1).as_u64()).await? {
-                        total_time += block.timestamp.as_u64() as f64 - prev_block.timestamp.as_u64() as f64;
+                        total_time +=
+                            block.timestamp.as_u64() as f64 - prev_block.timestamp.as_u64() as f64;
                     }
                 }
             }
@@ -288,7 +301,8 @@ impl BscNetworkMonitor {
                     block_time_analysis.average_block_time
                 ),
                 priority: "Medium".to_string(),
-                action: "考虑增加 ETH_WATCH_CONFIRMATIONS_FOR_ETH_EVENT 以适应较慢的出块".to_string(),
+                action: "考虑增加 ETH_WATCH_CONFIRMATIONS_FOR_ETH_EVENT 以适应较慢的出块"
+                    .to_string(),
             });
         }
 
@@ -338,10 +352,7 @@ impl BscNetworkMonitor {
         } else if utilization < 0.1 {
             recommendations.push(PerformanceRecommendation {
                 category: "Network Utilization".to_string(),
-                message: format!(
-                    "网络利用率 ({:.1}%) 很低，有优化空间",
-                    utilization * 100.0
-                ),
+                message: format!("网络利用率 ({:.1}%) 很低，有优化空间", utilization * 100.0),
                 priority: "Low".to_string(),
                 action: "可以增加批次大小 (max_aggregated_blocks_to_commit) 以提高效率".to_string(),
             });
@@ -365,7 +376,8 @@ impl BscNetworkMonitor {
                         category: "BSC Optimization".to_string(),
                         message: "网络条件良好，可以启用更激进的优化策略".to_string(),
                         priority: "Medium".to_string(),
-                        action: "考虑启用 aggressive_batching 和降低 batch_overhead_l1_gas".to_string(),
+                        action: "考虑启用 aggressive_batching 和降低 batch_overhead_l1_gas"
+                            .to_string(),
                     });
                 }
             }
@@ -384,11 +396,13 @@ impl BscNetworkMonitor {
     }
 
     fn print_real_time_metrics(&self, metrics: &BscNetworkMetrics) {
-        println!("\n📊 实时网络指标 [{}]", 
-                 chrono::DateTime::from_timestamp(metrics.timestamp as i64, 0)
-                     .unwrap_or_default()
-                     .format("%H:%M:%S"));
-        
+        println!(
+            "\n📊 实时网络指标 [{}]",
+            chrono::DateTime::from_timestamp(metrics.timestamp as i64, 0)
+                .unwrap_or_default()
+                .format("%H:%M:%S")
+        );
+
         println!("   区块高度: {}", metrics.block_number);
         println!("   区块时间: {:.1}s", metrics.block_time_seconds);
         println!("   Gas 价格: {:.2} Gwei", metrics.gas_price_gwei);
@@ -411,31 +425,44 @@ impl BscNetworkMonitor {
         report.push_str("# BSC 网络性能报告\n\n");
 
         // 统计摘要
-        let avg_block_time = metrics_history.iter()
+        let avg_block_time = metrics_history
+            .iter()
             .map(|m| m.block_time_seconds)
-            .sum::<f64>() / metrics_history.len() as f64;
+            .sum::<f64>()
+            / metrics_history.len() as f64;
 
-        let avg_gas_price = metrics_history.iter()
+        let avg_gas_price = metrics_history
+            .iter()
             .map(|m| m.gas_price_gwei)
-            .sum::<f64>() / metrics_history.len() as f64;
+            .sum::<f64>()
+            / metrics_history.len() as f64;
 
-        let avg_utilization = metrics_history.iter()
+        let avg_utilization = metrics_history
+            .iter()
             .map(|m| m.network_utilization)
-            .sum::<f64>() / metrics_history.len() as f64;
+            .sum::<f64>()
+            / metrics_history.len() as f64;
 
-        let avg_tps = metrics_history.iter()
-            .map(|m| m.tps_estimate)
-            .sum::<f64>() / metrics_history.len() as f64;
+        let avg_tps = metrics_history.iter().map(|m| m.tps_estimate).sum::<f64>()
+            / metrics_history.len() as f64;
 
-        let avg_performance = metrics_history.iter()
+        let avg_performance = metrics_history
+            .iter()
             .map(|m| m.performance_score)
-            .sum::<f64>() / metrics_history.len() as f64;
+            .sum::<f64>()
+            / metrics_history.len() as f64;
 
         report.push_str(&format!("## 性能摘要\n"));
-        report.push_str(&format!("- 监控时长: {} 分钟\n", metrics_history.len() * 30 / 60));
+        report.push_str(&format!(
+            "- 监控时长: {} 分钟\n",
+            metrics_history.len() * 30 / 60
+        ));
         report.push_str(&format!("- 平均区块时间: {:.2}s\n", avg_block_time));
         report.push_str(&format!("- 平均 Gas 价格: {:.2} Gwei\n", avg_gas_price));
-        report.push_str(&format!("- 平均网络利用率: {:.1}%\n", avg_utilization * 100.0));
+        report.push_str(&format!(
+            "- 平均网络利用率: {:.1}%\n",
+            avg_utilization * 100.0
+        ));
         report.push_str(&format!("- 平均 TPS: {:.1}\n", avg_tps));
         report.push_str(&format!("- 平均性能评分: {:.1}/100\n\n", avg_performance));
 

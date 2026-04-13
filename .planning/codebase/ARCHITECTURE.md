@@ -1,240 +1,173 @@
 # Architecture
 
-**Analysis Date:** 2026-04-02
+**Analysis Date:** 2026-04-08
 
 ## Pattern Overview
 
-**Overall:** Plugin-based service composition using task and resource framework
+**Overall:** Component-based service framework with explicit dependency injection via a "wiring layer" pattern. The node is assembled by composing independent `WiringLayer` units into a `ZkStackService`. Each layer registers `Task` workers and `Resource` interfaces (shared via trait objects) consumed by other layers.
 
 **Key Characteristics:**
-- Modular component architecture built on `ZkStackService` and `ZkStackServiceBuilder`
-- Task-based execution model with resource dependency injection
-- Pluggable layers (WiringLayers) for composing node functionality
-- Clear separation between consensus/execution layer, synchronization, and API exposure
-- Event-driven integration with L1 Ethereum network and external data availability providers
+- All long-running work runs as independent async `Task`s managed by `ZkStackService`
+- Components communicate through PostgreSQL (DAL) as the shared state bus — not direct in-process calls
+- Separation between `core/lib/` (pure libraries with no node-wiring code) and `core/node/` (node-integrated components with `pub mod node` wiring modules)
+- Three distinct executables share most library code: main node (`zksync_server`), external node (`external_node`), and TEE prover (`zksync_tee_prover`)
+- BSC-specific adaptations are isolated to `core/node/eth_sender/src/network_aware/` and `core/node/fee_model/src/l1_gas_price/`
 
 ## Layers
 
-**Data Access Layer (DAL):**
-- Purpose: Unified database access to PostgreSQL with type-safe queries
-- Location: `core/lib/dal/src/`
-- Contains: Domain-specific DAL classes (BlocksDal, TransactionsDal, EthSenderDal, etc.)
-- Depends on: `zksync_db_connection`, `sqlx`
-- Used by: All components that need persistent storage
-
-**VM Execution Layer:**
-- Purpose: Execute transactions in multiple VM versions with state management
-- Location: `core/lib/multivm/src/` and `core/lib/vm_executor/src/`
-- Contains: `BatchExecutor` implementations for each protocol version
-- Depends on: `zksync_types`, `zksync_state`, VM libraries (zk_evm_*)
-- Used by: StateKeeper, VmRunner components
-
-**State & Storage Layer:**
-- Purpose: Manage blockchain state with RocksDB caching and storage reads
-- Location: `core/lib/state/src/` and `core/lib/storage/src/`
-- Contains: State readers, storage interfaces, snapshot management
-- Depends on: `zksync_types`, RocksDB
-- Used by: Executor, StateKeeper, metadata calculator
-
-**Type System:**
-- Purpose: Core domain types for transactions, blocks, operations
-- Location: `core/lib/types/src/`
-- Contains: `Transaction`, `L1Batch`, `L2Block`, protocol upgrades, fees
-- Depends on: `zksync_basic_types`, crypto primitives
-- Used by: All other layers
+**Binary / Entry Points:**
+- Purpose: Parse CLI, load configuration, assemble the node using builder pattern
+- Location: `core/bin/zksync_server/src/`, `core/bin/external_node/src/`
+- Contains: `main.rs`, `node_builder.rs`, `components.rs`
+- Depends on: `core/lib/node_framework`, all `core/node/*/src/node/` wiring modules
+- Used by: Operators running the chain
 
 **Node Framework:**
-- Purpose: Service composition, dependency injection, task lifecycle management
+- Purpose: Dependency injection container and service lifecycle manager
 - Location: `core/lib/node_framework/src/`
-- Contains: `Task` trait (with variants: Task, OneshotTask, Precondition, UnconstrainedTask), `Resource` trait, `WiringLayer` for component registration
-- Depends on: `tokio`, `async-trait`
-- Used by: All executable binaries (zksync_server, external_node)
+- Contains: `WiringLayer` trait, `Task` trait, `Resource` trait, `ZkStackService`, `ZkStackServiceBuilder`
+- Depends on: Nothing beyond tokio/anyhow
+- Used by: Every `core/node/*/src/node/` module
 
-**Configuration Layer:**
-- Purpose: Unified configuration from environment variables and YAML files
-- Location: `core/lib/config/src/`
-- Contains: GeneralConfig, Secrets, Wallets, ContractsConfig, Genesis
-- Depends on: `serde`, `envy`, `serde_yaml`
-- Used by: Node builders during startup
+**Node Components (`core/node/`):**
+- Purpose: Long-running daemon tasks that implement the zkStack protocol pipeline
+- Location: `core/node/*/src/`
+- Contains: Business logic + `pub mod node` (wiring adapter to register with framework)
+- Depends on: `core/lib/` for types, DAL, eth_client; PostgreSQL for state
+- Used by: Node builder wires them into `ZkStackService`
 
-**Observability Layer:**
-- Purpose: Centralized logging, tracing, metrics, and error reporting
-- Location: `core/lib/vlog/src/`
-- Contains: Logging setup, OpenTelemetry integration, Sentry configuration
-- Depends on: `tracing`, `opentelemetry`, `sentry`
-- Used by: All components via `tracing` macros
-
-**Ethereum Integration Layer:**
-- Purpose: Interaction with L1 Ethereum chain and settlement layers
-- Location: `core/lib/eth_client/src/` and `core/node/eth_watch/src/`
-- Contains: Web3 client abstraction, event processing (priority ops, protocol upgrades, batch roots)
-- Depends on: `web3`, `ethabi`
-- Used by: EthWatch, EthSender, Proof Manager components
+**Library Layer (`core/lib/`):**
+- Purpose: Reusable, framework-independent crates — types, DAL, clients, VM, crypto
+- Location: `core/lib/*/src/`
+- Contains: Pure logic, trait definitions, data models
+- Depends on: External crates only (no circular dependencies to node/)
+- Used by: Both `core/node/` and `core/bin/`
 
 ## Data Flow
 
-**Transaction Ingestion:**
+**L2 Transaction Lifecycle (main node):**
 
-1. User submits transaction via API Server Web3 namespace
-2. TxSender validates and accepts transaction to mempool
-3. MempoolIO reads from mempool into StateKeeper
-4. StateKeeper executes transaction in batch executor
-5. StateKeeperIO persists L2 blocks and state updates to database
+1. Client sends JSON-RPC → `core/node/api_server` (`EthNamespace`, `ZksNamespace`) receives it
+2. `TxSender` in `core/node/api_server/src/tx_sender/` validates and inserts into `MempoolStore` (`core/lib/mempool`)
+3. `MempoolFetcher` (`core/node/state_keeper`) polls the mempool and feeds to `StateKeeper`
+4. `StateKeeper` (`core/node/state_keeper/src/keeper.rs`) executes txs via `BatchExecutor` (backed by `core/lib/multivm`)
+5. After sealing criteria trigger (`core/node/state_keeper/src/seal_criteria/`), the L2 block/L1 batch is finalized
+6. `StateKeeperPersistence` writes sealed batch data to PostgreSQL via `core/lib/dal`
 
-**Block Sealing and L1 Commitment:**
+**L1 Batch → L1 Settlement Pipeline:**
 
-1. StateKeeper seals L2 block when seal criteria met (gas, time, transactions)
-2. StateKeeperOutputHandler persists block to database
-3. MetadataCalculator computes merkle proofs for state changes
-4. CommitmentGenerator creates L1 batch commitments
-5. EthSender batches commitments and publishes to L1 Ethereum
-6. Proof handlers (EthProofManager, ProofDataHandler) manage proof generation and verification
+1. `MetadataCalculator` (`core/node/metadata_calculator`) reads sealed batches from DB, updates Merkle tree (RocksDB via `core/lib/zk_os_merkle_tree`), writes tree root back to DB
+2. `CommitmentGenerator` (`core/node/commitment_generator`) reads batch + tree data, computes KZG commitments / pubdata hashes, writes `L1BatchCommitmentArtifacts` to DB
+3. `DataAvailabilityDispatcher` (`core/node/da_dispatcher`) reads pubdata from DB, submits to the configured DA layer (Avail, Celestia, EigenDA, or calldata/blobs)
+4. `EthTxAggregator` (`core/node/eth_sender`) reads committed batches from DB and groups them into aggregated L1 operations (commit / prove / execute)
+5. `EthTxManager` (`core/node/eth_sender`) signs and submits the aggregated txs to BSC L1, handles resubmission with bumped fees, tracks finality in DB
+6. `ConsistencyChecker` (`core/node/consistency_checker`) verifies committed batch data against L1 contract state
 
-**L1 Event Synchronization:**
+**L1 → L2 Priority Operations:**
 
-1. EthWatch polls L1 Ethereum at configured intervals
-2. Event processors decode smart contract events:
-   - PriorityOpsEventProcessor: Processes priority operations from deposits
-   - DecentralizedUpgradesEventProcessor: Tracks protocol upgrades
-   - BatchRootProcessor: Processes settlement layer batch roots
-3. Events persisted to database via EventsDal
-4. EventsWeb3Dal provides read-only access to events for API responses
+1. `EthWatch` (`core/node/eth_watch`) polls BSC L1 (via `core/lib/eth_client`) for events from the diamond proxy contract
+2. `PriorityOpsEventProcessor` writes priority ops to DB; `DecentralizedUpgradesEventProcessor` handles protocol upgrades
+3. `StateKeeper` picks up priority ops from DB as it opens each new batch
+4. BSC-specific: block range per query is limited to 5000 blocks (hardcoded in `core/node/eth_watch/src/lib.rs:218`)
 
-**Data Availability Flow:**
+**External Node Sync:**
 
-1. StateKeeper produces pubdata (state changes) after L2 block execution
-2. DADispatcher selects DA client based on config (Avail, Celestia, EigenDA, ObjectStore, NoDA)
-3. DA client submits pubdata to settlement layer
-4. ProofDataHandler or TeeProofDataHandler retrieves DA data for proof generation
+1. External node runs `node_sync` (`core/node/node_sync`) which fetches L2 block data from main node via JSON-RPC
+2. `ExternalIO` replays batches through the same `StateKeeper` / `BatchExecutor` pipeline
+3. Tree and commitment are built identically, allowing independent verification
+
+**Fee Computation:**
+
+1. `GasAdjuster` (`core/node/fee_model/src/l1_gas_price/gas_adjuster/`) samples recent BSC blocks for `base_fee` and `blob_base_fee`
+2. BSC fee_history API incompleteness is handled with padding/fallback logic in the same module
+3. `BscGasPriceProvider` (`core/node/eth_sender/src/eth_fees_oracle.rs`) uses safety margins instead of EIP-1559 priority fees
+4. `NetworkType` detector (`core/node/eth_sender/src/network_aware/network_detector.rs`) routes to legacy or EIP-1559 fee path based on chain ID
 
 **State Management:**
-- State snapshots stored in RocksDB with merkle tree commitments
-- Tree updates via metadata calculator maintain state root history
-- Snapshot recovery allows nodes to sync from recent snapshots instead of genesis
-- Reorg detector monitors for L1 reorgs and triggers block reverter if needed
+- Canonical truth lives in PostgreSQL (via `core/lib/dal`)
+- Merkle tree state is a RocksDB sidecar kept in sync by `MetadataCalculator`
+- In-memory mempool (`MempoolStore`) is rebuilt from DB on restart
+- Tokio `watch` channels pass stop signals and share reader handles (e.g., `AsyncTreeReader`)
 
 ## Key Abstractions
 
-**WiringLayer (Component Registration):**
-- Purpose: Register task and resource dependencies into ZkStackService
-- Examples: `StateKeeperLayer`, `EthWatchLayer`, `Web3ServerLayer`
-- Pattern: Implement `WiringLayer` trait with method to add layer to service builder
-- Located: Each component has `node/` subdirectory with layer implementation
+**`WiringLayer` / `Task` / `Resource`:**
+- Purpose: Compose node services with explicit dependency declarations
+- Examples: `core/node/state_keeper/src/node/`, `core/node/eth_sender/src/node/`, `core/node/metadata_calculator/src/node/`
+- Pattern: Each `WiringLayer` implementation's `wire()` method constructs the component and registers it as a `Task`; resources are shared via `Arc<dyn Trait>`
 
-**Task (Runnable Work):**
-- Purpose: Unit of work that executes in the node lifecycle
-- Variants:
-  - `Task`: Runs until error or stop signal (main components)
-  - `OneshotTask`: Runs and exits without stopping service
-  - `Precondition`: Barrier task that checks invariants before main tasks start
-  - `UnconstrainedTask`: Runs immediately without waiting for preconditions
-- Pattern: Implement `Task` trait with `id()` method, optional `kind()` override, and `run()` async method
+**`StateKeeperIO` trait:**
+- Purpose: Decouple batch production from the source of transactions (mempool vs. external sync)
+- Examples: `core/node/state_keeper/src/io/mempool.rs` (main node), `core/node/node_sync/src/external_io.rs` (external node)
+- Pattern: Trait object injected into `StateKeeper` at construction time
 
-**Resource (Shared State/Interfaces):**
-- Purpose: Shared dependencies injected into tasks
-- Kinds:
-  - `Plain`: No wrapper (requires Copy or similar)
-  - `Shared`: Wrapped in `Arc<T>` for thread-safe sharing
-  - `Boxed`: Wrapped in `Box<T>`
-- Pattern: Implement `Resource<Kind>` trait with `name()` method
-- Examples: `ConnectionPool`, `EthClient`, `ObjectStore`
+**`BatchExecutor` / `BatchExecutorFactory` traits:**
+- Purpose: Execute transactions against VM state, independent of state keeper IO
+- Examples: `core/lib/multivm/src/vm_instance.rs` (production), test doubles in `core/node/state_keeper/src/testonly/`
+- Pattern: Factory pattern — `BatchExecutorFactory` spawns a `BatchExecutor` per batch
 
-**WiringLayer Pattern:**
+**Data Access Layer (DAL):**
+- Purpose: Single typed interface to all PostgreSQL tables
+- Examples: `core/lib/dal/src/blocks_dal.rs`, `core/lib/dal/src/transactions_dal.rs`, `core/lib/dal/src/eth_sender_dal.rs`
+- Pattern: `ConnectionPool<Core>` → `Connection<Core>` → `CoreDal` trait provides typed DAL accessors; ~30 sub-DALs accessed via `connection.blocks_dal()`, etc.
 
-```rust
-pub struct MyComponentLayer;
+**`EthClient` / `BoundEthInterface` traits:**
+- Purpose: Typed L1 (BSC) interaction — call, send tx, query events
+- Examples: `core/lib/eth_client/src/clients/http/`, `core/lib/eth_client/src/lib.rs`
+- Pattern: Trait objects allow test doubles; `DynClient<L1>` / `DynClient<L2>` are type-tagged wrappers
 
-impl WiringLayer for MyComponentLayer {
-    fn layer_name(&self) -> &'static str {
-        "my_component"
-    }
+**`DataAvailabilityClient` trait:**
+- Purpose: Pluggable DA backends
+- Examples: `core/node/da_clients/src/avail/`, `core/node/da_clients/src/celestia/`, `core/node/da_clients/src/eigen/`
+- Pattern: Interface defined in `core/lib/da_client/`; concrete impls in `core/node/da_clients/`
 
-    async fn wire(self, mut context: ServiceContext<'_>) -> Result<(), WiringError> {
-        let config = context.config().some_config.clone();
-        let pool = context.get_resource::<ConnectionPool<Core>>().await?;
-
-        let component = MyComponent::new(config, pool);
-        context.add_task(Box::new(MyTask::new(component)));
-        context.add_resource(Arc::new(component) as Arc<dyn MyInterface>);
-
-        Ok(())
-    }
-}
-```
-
-**StateKeeper (Core Block Producer):**
-- Purpose: Main execution loop that seals L2 blocks and L1 batches
-- Location: `core/node/state_keeper/src/keeper.rs`
-- Pattern: Polls mempool for transactions, executes in VM, checks seal criteria
-- Outputs: L2 blocks, L1 batches, execution metrics
-- State variants: `BatchState::Uninit` → `BatchState::Init`
-
-**EthWatch (L1 Event Listener):**
-- Purpose: Polls L1 for smart contract events and processes them
-- Location: `core/node/eth_watch/src/lib.rs`
-- Pattern: Periodic polling with event processor chain
-- Event processors implement `EventProcessor` trait for pluggable event handling
-- Maintains state: last seen protocol version, next priority op ID, batch roots
-
-**EthSender (L1 Transaction Publisher):**
-- Purpose: Batches commitments/proofs and sends to L1 Ethereum
-- Location: `core/node/eth_sender/src/`
-- Components: `EthTxManager` (tracks tx lifecycle), `EthTxAggregator` (batches ops)
-- Pattern: Observes commitments, aggregates, estimates gas, monitors confirmation
+**`L1BatchCommitment` / `L1BatchWithMetadata`:**
+- Purpose: Typed representation of all data needed to commit a batch on L1
+- Examples: `core/lib/types/src/commitment.rs`
+- Pattern: Built by `CommitmentGenerator`, consumed by `EthTxAggregator` which encodes it into ABI calldata via `core/lib/l1_contract_interface/`
 
 ## Entry Points
 
-**Main Server:**
+**Main Node Binary:**
 - Location: `core/bin/zksync_server/src/main.rs`
-- Triggers: `cargo run --bin zksync_server [--components api,tree,eth,state_keeper,...]`
-- Responsibilities: Orchestrates main node with selectable components via CLI args
-- Builder: `MainNodeBuilder` in `node_builder.rs` wires all layers
+- Triggers: `zksync_server` executable; default components = `api,tree,eth,state_keeper,housekeeper,commitment_generator,da_dispatcher,vm_runner_protective_reads,consensus`
+- Responsibilities: Parse config, construct `MainNodeBuilder`, call `build()` then `run()`
 
-**External Node:**
+**External Node Binary:**
 - Location: `core/bin/external_node/src/main.rs`
-- Triggers: `cargo run --bin external_node`
-- Responsibilities: Runs read-only sync node, exposes API, supports consensus-based sync
-- Builder: `ExternalNodeBuilder` wires subset of layers (no StateKeeper, no eth_sender)
+- Triggers: `external_node` executable
+- Responsibilities: Same pattern; wires `ExternalNodeBuilder` which replaces `MempoolIO` with `ExternalIO`
 
-**Utility Binaries:**
-- `contract-verifier`: Verifies smart contract source code
-- `genesis_generator`: Creates genesis block for new chains
-- `block_reverter`: Reverts state to specific L1 batch
-- `snapshots_creator`: Creates state snapshots for node recovery
-- Located: `core/bin/{binary_name}/src/main.rs`
+**Block Reverter Tool:**
+- Location: `core/bin/block_reverter/src/main.rs`, library at `core/node/block_reverter/`
+- Responsibilities: Roll back DB state and Merkle tree to a prior L1 batch number for reorg recovery
+
+**Genesis Generator:**
+- Location: `core/bin/genesis_generator/src/main.rs`, library at `core/node/genesis/`
+- Responsibilities: Initialize DB state from genesis config before first run
 
 ## Error Handling
 
-**Strategy:** Result-based error propagation with context enrichment
+**Strategy:** `anyhow::Result` propagation for all component-level errors. Fatal errors shut down the node; transient errors are logged and retried in polling loops.
 
 **Patterns:**
-- Use `anyhow::Result<T>` and `anyhow::Context` for error messages
-- Each layer adds context with `.context("what was being done")?`
-- Critical errors trigger task exit (DAL errors, execution failures)
-- Recoverable errors trigger circuit breaker checks (eth_client timeouts, external API failures)
-
-**Examples:**
-- StateKeeper returns `OrStopped` wrapper for cancellation-aware operations
-- EthWatch catches event processor errors and continues polling
-- TxSender validates and rejects invalid transactions with detailed error messages
+- `EthWatch` distinguishes `EventProcessorError::Fatal` (returns `Err`, kills node) from `EventProcessorError::Transient` (logs, continues loop)
+- `EthTxManager` retries stuck transactions with bumped gas prices using exponential backoff strategy stored in DB (`eth_tx_history`)
+- DAL errors use `DalError`/`DalResult` wrappers that attach context (query, table) to `sqlx::Error`
+- `CircuitBreaker` (`core/lib/circuit_breaker/`) halts the node on detected state inconsistencies
 
 ## Cross-Cutting Concerns
 
-**Logging:** Via `tracing` crate with structured logging
-- Pattern: `tracing::info!()`, `tracing::debug!()`, `tracing::warn!()`, `tracing::error!()`
-- Observability setup in `vlog` layer initializes tracing subscribers
-- Example: `tracing::info!("Sealed block {number} with {tx_count} transactions")`
+**Logging:** `tracing` crate throughout; spans named with component prefix (e.g., `#[tracing::instrument(name = "EthWatch::loop_iteration")]`). Configured via `core/lib/vlog/`.
 
-**Validation:** Per-layer input validation with early rejection
-- Transaction validation: `TxSender.proxy` checks signature, nonce, gas
-- Execution validation: `StateKeeper.keeper` uses seal criteria to validate block state
-- Event validation: `EventProcessor` implementations filter for valid events
+**Metrics:** `vise` (Prometheus) metrics crate. Each component has `mod metrics` with a static `METRICS` instance. Shared metrics in `core/node/shared_metrics/`.
 
-**Authentication:** Whitelist-based access control for API endpoints
-- Component: `DeploymentAllowListLayer` restricts contract deployment
-- Optional whitelisted pool sink filters write operations
-- Located: `core/node/api_server/src/node/`
+**Health Checks:** `ReactiveHealthCheck` + `HealthUpdater` pattern from `core/lib/health_check/`. Each component publishes its health status; aggregated by the HTTP health endpoint.
+
+**Validation:** Input validation at API layer (`core/node/api_server/src/tx_sender/`) using configurable gas limits. Signature validation via `core/lib/crypto_primitives/`.
+
+**Authentication:** No application-layer auth on JSON-RPC. L1 operator keys loaded from config (`Secrets`/`Wallets`); signing done in `core/lib/eth_signer/`.
 
 ---
 
-*Architecture analysis: 2026-04-02*
+*Architecture analysis: 2026-04-08*

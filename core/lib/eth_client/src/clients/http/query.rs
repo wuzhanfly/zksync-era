@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::OnceLock};
 
 use async_trait::async_trait;
 use jsonrpsee::core::ClientError;
@@ -17,22 +17,14 @@ use crate::{
 
 const FEE_HISTORY_MAX_REQUEST_CHUNK: usize = 1023;
 
-/// 检测是否为BSC网络（通过环境变量）
-fn detect_bsc_network_from_env() -> bool {
-    if let Ok(chain_id_str) = std::env::var("L1_CHAIN_ID") {
-        if let Ok(chain_id) = chain_id_str.parse::<u64>() {
-            matches!(chain_id, 56 | 97) // BSC Mainnet (56) 或 BSC Testnet (97)
-        } else {
-            false
-        }
-    } else {
-        // 如果没有设置环境变量，尝试从RPC URL推断
-        if let Ok(rpc_url) = std::env::var("L1_RPC_URL") {
-            rpc_url.contains("bsc") || rpc_url.contains("binance") || rpc_url.contains("bnb")
-        } else {
-            false
-        }
-    }
+fn is_bsc_network() -> bool {
+    static IS_BSC: OnceLock<bool> = OnceLock::new();
+    *IS_BSC.get_or_init(|| {
+        std::env::var("L1_CHAIN_ID")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .map_or(false, |id| matches!(id, 56 | 97))
+    })
 }
 
 #[async_trait]
@@ -124,7 +116,10 @@ where
         latency.observe();
 
         // base_fee_per_gas always exists after London fork
-        Ok(block.base_fee_per_gas.unwrap())
+        Ok(block.base_fee_per_gas.unwrap_or_else(|| {
+            tracing::warn!("block.base_fee_per_gas is None, using 1 Gwei fallback");
+            U256::from(1_000_000_000u64)
+        }))
     }
 
     async fn get_tx_status(&self, hash: H256) -> EnrichedClientResult<Option<ExecutedTxStatus>> {
@@ -343,8 +338,10 @@ where
             .await?;
 
         // BSC 兼容性检查：BSC 的 oldest_block 可能与预期略有不同
-        let is_bsc_network = detect_bsc_network_from_env();
-        if !is_bsc_network && fee_history.oldest_block != web3::BlockNumber::Number(chunk_start.into()) {
+        let is_bsc_network = is_bsc_network();
+        if !is_bsc_network
+            && fee_history.oldest_block != web3::BlockNumber::Number(chunk_start.into())
+        {
             let oldest_block = match fee_history.oldest_block {
                 web3::BlockNumber::Number(oldest_block) => oldest_block.to_string(),
                 _ => format!("{:?}", fee_history.oldest_block),
@@ -373,10 +370,10 @@ where
                 fee_history.base_fee_per_gas.len(),
                 fee_history.gas_used_ratio.len()
             );
-            
+
             // BSC 通常返回较少的数据，我们需要智能处理
             let mut base_fees = fee_history.base_fee_per_gas;
-            
+
             if base_fees.len() < chunk_size + 1 {
                 // BSC 返回的数据不足，使用智能填充策略
                 let fill_value = if !base_fees.is_empty() {
@@ -386,7 +383,7 @@ where
                     // BSC 典型的 gas price：1 Gwei (BSC 网络通常使用固定的低费用)
                     U256::from(1_000_000_000u64)
                 };
-                
+
                 tracing::info!(
                     "BSC fee_history: padding from {} to {} entries with value {} wei ({} Gwei)",
                     base_fees.len(),
@@ -394,13 +391,13 @@ where
                     fill_value,
                     fill_value / U256::from(1_000_000_000u64)
                 );
-                
+
                 base_fees.resize(chunk_size + 1, fill_value);
             } else if base_fees.len() > chunk_size + 1 {
                 // 如果返回的数据过多，截取需要的部分
                 base_fees.truncate(chunk_size + 1);
             }
-            
+
             base_fees
         } else {
             // 以太坊网络：保持原有严格检查
@@ -422,7 +419,10 @@ where
             if fee_history.base_fee_per_blob_gas.is_empty() {
                 // BSC 节点未返回 blob 费用数据，用零值填充
                 // 这不影响 blob 交易发送，实际 blob fee 会在发送时从 gas adjuster 获取
-                tracing::debug!("BSC network: no blob fee data returned, padding with zeros for {} blocks", chunk_size + 1);
+                tracing::debug!(
+                    "BSC network: no blob fee data returned, padding with zeros for {} blocks",
+                    chunk_size + 1
+                );
                 vec![U256::zero(); chunk_size + 1]
             } else if fee_history.base_fee_per_blob_gas.len() != chunk_size + 1 {
                 tracing::debug!(
@@ -456,11 +456,7 @@ where
 
         // We take `chunk_size` entries for consistency with `l2_base_fee_history` which doesn't
         // have correct data for block with number `upto_block + 1`.
-        for (base, blob) in base_fees
-            .into_iter()
-            .zip(blob_fees)
-            .take(chunk_size)
-        {
+        for (base, blob) in base_fees.into_iter().zip(blob_fees).take(chunk_size) {
             let fees = BaseFees {
                 base_fee_per_gas: cast_to_u64(base, "base_fee_per_gas")?,
                 base_fee_per_blob_gas: blob,

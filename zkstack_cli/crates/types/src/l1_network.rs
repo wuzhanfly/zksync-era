@@ -16,7 +16,10 @@ mod tests {
         assert_eq!(network.chain_id(), 56);
         assert_eq!(network.native_token_symbol(), "BNB");
         assert!(network.is_bsc_network());
-        assert_eq!(network.default_rpc_url(), Some("https://bsc-dataseed.binance.org/"));
+        assert_eq!(
+            network.default_rpc_url(),
+            Some("https://bsc-dataseed.binance.org/")
+        );
         assert_eq!(network.block_explorer_url(), Some("https://bscscan.com"));
     }
 
@@ -27,8 +30,14 @@ mod tests {
         assert_eq!(network.chain_id(), 97);
         assert_eq!(network.native_token_symbol(), "BNB");
         assert!(network.is_bsc_network());
-        assert_eq!(network.default_rpc_url(), Some("https://bsc-testnet-dataseed.bnbchain.org"));
-        assert_eq!(network.block_explorer_url(), Some("https://testnet.bscscan.com"));
+        assert_eq!(
+            network.default_rpc_url(),
+            Some("https://bsc-testnet-dataseed.bnbchain.org")
+        );
+        assert_eq!(
+            network.block_explorer_url(),
+            Some("https://testnet.bscscan.com")
+        );
     }
 
     #[test]
@@ -60,7 +69,11 @@ mod tests {
         let mut chain_ids = Vec::new();
         for network in networks {
             let chain_id = network.chain_id();
-            assert!(!chain_ids.contains(&chain_id), "Duplicate chain ID: {}", chain_id);
+            assert!(
+                !chain_ids.contains(&chain_id),
+                "Duplicate chain ID: {}",
+                chain_id
+            );
             chain_ids.push(chain_id);
         }
     }
@@ -110,14 +123,26 @@ mod tests {
 
         for network in networks {
             let rpc_url = network.default_rpc_url();
-            assert!(rpc_url.is_some(), "Network {:?} should have a default RPC URL", network);
+            assert!(
+                rpc_url.is_some(),
+                "Network {:?} should have a default RPC URL",
+                network
+            );
 
             let url = rpc_url.unwrap();
-            assert!(!url.is_empty(), "RPC URL should not be empty for {:?}", network);
+            assert!(
+                !url.is_empty(),
+                "RPC URL should not be empty for {:?}",
+                network
+            );
 
             // Basic URL format validation
             if network != L1Network::Localhost {
-                assert!(url.starts_with("https://"), "RPC URL should use HTTPS for {:?}", network);
+                assert!(
+                    url.starts_with("https://"),
+                    "RPC URL should use HTTPS for {:?}",
+                    network
+                );
             }
         }
     }
@@ -200,7 +225,9 @@ impl L1Network {
     #[must_use]
     pub fn native_token_symbol(&self) -> &'static str {
         match self {
-            L1Network::Localhost | L1Network::Sepolia | L1Network::Holesky | L1Network::Mainnet => "ETH",
+            L1Network::Localhost | L1Network::Sepolia | L1Network::Holesky | L1Network::Mainnet => {
+                "ETH"
+            }
             L1Network::BscMainnet | L1Network::BscTestnet => "BNB",
         }
     }

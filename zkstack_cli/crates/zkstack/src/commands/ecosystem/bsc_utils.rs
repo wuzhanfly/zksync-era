@@ -1,4 +1,3 @@
-
 use ethers::{providers::Middleware, types::Address};
 use zkstack_cli_common::ethereum::get_ethers_provider;
 use zkstack_cli_types::L1Network;
@@ -34,10 +33,16 @@ impl BscNetworkUtils {
                 Self::validate_testnet_config(&provider).await?;
             }
             (L1Network::BscMainnet, _) => {
-                anyhow::bail!("Chain ID mismatch: Expected BSC Mainnet (56), got {}", chain_id);
+                anyhow::bail!(
+                    "Chain ID mismatch: Expected BSC Mainnet (56), got {}",
+                    chain_id
+                );
             }
             (L1Network::BscTestnet, _) => {
-                anyhow::bail!("Chain ID mismatch: Expected BSC Testnet (97), got {}", chain_id);
+                anyhow::bail!(
+                    "Chain ID mismatch: Expected BSC Testnet (97), got {}",
+                    chain_id
+                );
             }
             _ => unreachable!("Non-BSC network passed to BSC validator"),
         }
@@ -46,9 +51,7 @@ impl BscNetworkUtils {
     }
 
     /// Validate BSC Mainnet specific configuration
-    async fn validate_mainnet_config<M: Middleware + 'static>(
-        provider: &M,
-    ) -> anyhow::Result<()> {
+    async fn validate_mainnet_config<M: Middleware + 'static>(provider: &M) -> anyhow::Result<()> {
         println!("🔍 Validating BSC Mainnet specific configuration...");
 
         // Check WBNB contract exists
@@ -57,7 +60,10 @@ impl BscNetworkUtils {
         if wbnb_code.is_empty() {
             anyhow::bail!("WBNB contract not found at expected address on BSC Mainnet");
         }
-        println!("✅ WBNB contract validated at {}", bsc::MAINNET_WBNB_ADDRESS);
+        println!(
+            "✅ WBNB contract validated at {}",
+            bsc::MAINNET_WBNB_ADDRESS
+        );
 
         // Check Multicall3 contract exists
         let multicall3_address: Address = bsc::MULTICALL3_ADDRESS.parse()?;
@@ -65,7 +71,10 @@ impl BscNetworkUtils {
         if multicall3_code.is_empty() {
             anyhow::bail!("Multicall3 contract not found at expected address on BSC Mainnet");
         }
-        println!("✅ Multicall3 contract validated at {}", bsc::MULTICALL3_ADDRESS);
+        println!(
+            "✅ Multicall3 contract validated at {}",
+            bsc::MULTICALL3_ADDRESS
+        );
 
         // Validate gas price is reasonable for mainnet
         let gas_price = provider.get_gas_price().await?;
@@ -80,9 +89,7 @@ impl BscNetworkUtils {
     }
 
     /// Validate BSC Testnet specific configuration
-    async fn validate_testnet_config<M: Middleware + 'static>(
-        provider: &M,
-    ) -> anyhow::Result<()> {
+    async fn validate_testnet_config<M: Middleware + 'static>(provider: &M) -> anyhow::Result<()> {
         println!("🔍 Validating BSC Testnet specific configuration...");
 
         // Check WBNB contract exists
@@ -91,7 +98,10 @@ impl BscNetworkUtils {
         if wbnb_code.is_empty() {
             anyhow::bail!("WBNB contract not found at expected address on BSC Testnet");
         }
-        println!("✅ WBNB contract validated at {}", bsc::TESTNET_WBNB_ADDRESS);
+        println!(
+            "✅ WBNB contract validated at {}",
+            bsc::TESTNET_WBNB_ADDRESS
+        );
 
         // Check Multicall3 contract exists
         let multicall3_address: Address = bsc::MULTICALL3_ADDRESS.parse()?;
@@ -99,41 +109,14 @@ impl BscNetworkUtils {
         if multicall3_code.is_empty() {
             anyhow::bail!("Multicall3 contract not found at expected address on BSC Testnet");
         }
-        println!("✅ Multicall3 contract validated at {}", bsc::MULTICALL3_ADDRESS);
+        println!(
+            "✅ Multicall3 contract validated at {}",
+            bsc::MULTICALL3_ADDRESS
+        );
 
         println!("💡 Tip: Get testnet BNB from https://testnet.bnbchain.org/faucet-smart");
 
         Ok(())
-    }
-
-    /// Get BSC network specific gas configuration
-    pub fn get_gas_config(l1_network: L1Network) -> Option<BscGasConfig> {
-        match l1_network {
-            L1Network::BscMainnet => Some(BscGasConfig {
-                scale_factor: bsc::MAINNET_GAS_PRICE_SCALE_FACTOR,
-                max_gas_price: bsc::MAINNET_MAX_GAS_PRICE,
-            }),
-            L1Network::BscTestnet => Some(BscGasConfig {
-                scale_factor: bsc::TESTNET_GAS_PRICE_SCALE_FACTOR,
-                max_gas_price: bsc::TESTNET_MAX_GAS_PRICE,
-            }),
-            _ => None,
-        }
-    }
-
-    /// Get BSC network specific token addresses
-    pub fn get_token_addresses(l1_network: L1Network) -> Option<BscTokenAddresses> {
-        match l1_network {
-            L1Network::BscMainnet => Some(BscTokenAddresses {
-                wbnb: bsc::MAINNET_WBNB_ADDRESS.to_string(),
-                multicall3: bsc::MULTICALL3_ADDRESS.to_string(),
-            }),
-            L1Network::BscTestnet => Some(BscTokenAddresses {
-                wbnb: bsc::TESTNET_WBNB_ADDRESS.to_string(),
-                multicall3: bsc::MULTICALL3_ADDRESS.to_string(),
-            }),
-            _ => None,
-        }
     }
 
     /// Check if wallet has sufficient BNB balance
@@ -159,16 +142,4 @@ impl BscNetworkUtils {
         println!("✅ Sufficient BNB balance for deployment");
         Ok(())
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct BscGasConfig {
-    pub scale_factor: f64,
-    pub max_gas_price: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct BscTokenAddresses {
-    pub wbnb: String,
-    pub multicall3: String,
 }

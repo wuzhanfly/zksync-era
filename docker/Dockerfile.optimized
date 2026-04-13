@@ -1,0 +1,32 @@
+# 优化的 ZKsync Server Docker 镜像 (目标: ~600MB)
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装运行时依赖（最小化）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /app
+
+# 只复制必要的二进制文件
+COPY target/release/zksync_server /usr/local/bin/zksync_server
+RUN chmod +x /usr/local/bin/zksync_server
+
+# 只复制数据库迁移文件（必需）
+COPY core/lib/dal/migrations /app/migrations
+
+# 暴露端口
+EXPOSE 3050 3051 3071 3312
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3071/health || exit 1
+
+# 启动脚本
+ENTRYPOINT ["/usr/local/bin/zksync_server"]
+

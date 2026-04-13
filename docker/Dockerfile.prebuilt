@@ -1,0 +1,53 @@
+# 预编译的 ZKsync Server Docker 镜像
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    postgresql-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 复制预编译的二进制文件
+COPY target/release/zksync_server /usr/local/bin/
+COPY target/release/zkstack /usr/local/bin/
+
+# 复制必要的文件
+COPY etc /app/etc
+COPY contracts /app/contracts
+COPY core/lib/dal/migrations /app/core/lib/dal/migrations
+
+# 暴露端口
+EXPOSE 3050 3051 3071 3312
+
+# 创建启动脚本
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "=== tMai Chain Server Starting ==="\n\
+if [ ! -d "/app/tmai_ecosystem" ]; then\n\
+    echo "❌ tmai_ecosystem 目录不存在"\n\
+    exit 1\n\
+fi\n\
+echo "检查数据库连接..."\n\
+DB_HOST=${DATABASE_HOST:-localhost}\n\
+DB_USER=${DATABASE_USER:-postgres}\n\
+DB_PASSWORD=${DATABASE_PASSWORD:-notsecurepassword}\n\
+until PGPASSWORD=$DB_PASSWORD psql -h "$DB_HOST" -U "$DB_USER" -d postgres -c "\\q" 2>/dev/null; do\n\
+  echo "等待数据库 $DB_HOST ..."\n\
+  sleep 2\n\
+done\n\
+echo "✅ 数据库连接成功"\n\
+export L1_CHAIN_ID=${L1_CHAIN_ID:-97}\n\
+export L1_RPC_URL=${L1_RPC_URL:-http://13.212.114.138:10575}\n\
+cd /app/tmai_ecosystem\n\
+echo "启动 ZKsync Server..."\n\
+echo "Chain: tmai_chain"\n\
+echo "L1 RPC: $L1_RPC_URL"\n\
+exec zkstack server --chain tmai_chain\n\
+' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

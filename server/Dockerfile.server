@@ -1,0 +1,40 @@
+# ZKsync Era Server Only (不包含初始化)
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUST_VERSION=1.83.0
+
+# 安装依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    postgresql-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${RUST_VERSION}
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+
+# 复制源码
+COPY . .
+
+# 构建
+RUN cargo build --release --bin zksync_server
+
+# 安装 zkstack
+RUN cargo install --path zkstack_cli/crates/zkstack --locked
+
+# 暴露端口
+EXPOSE 3050 3051 3071 3312
+
+# 启动脚本
+COPY server/start.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]

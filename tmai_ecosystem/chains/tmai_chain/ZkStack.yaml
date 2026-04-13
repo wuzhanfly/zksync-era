@@ -1,0 +1,21 @@
+id: 1
+name: tmai_chain
+chain_id: 9720
+prover_version: NoProofs
+l1_network: bsc-testnet
+link_to_code: /home/ubuntu/node
+configs: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/configs/
+rocks_db_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/db/
+external_node_config_path: null
+artifacts_path: /home/ubuntu/node/tmai_ecosystem/chains/tmai_chain/artifacts/
+l1_batch_commit_data_generator_mode: Rollup
+base_token:
+  address: 0xc42f240c256f5fb97346b9d69d10e2e1d77b2eba
+  nominator: 1
+  denominator: 1
+wallet_creation: Random
+evm_emulator: true
+tight_ports: false
+vm_option: EraVM
+contracts_path: /home/ubuntu/node/contracts/
+default_configs_path: /home/ubuntu/node/etc/env/file_based

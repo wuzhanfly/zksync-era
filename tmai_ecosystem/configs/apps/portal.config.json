@@ -1,0 +1,44 @@
+{
+  "nodeType": "hyperchain",
+  "hyperchainsConfig": [
+    {
+      "network": {
+        "id": 9720,
+        "key": "tmai_chain",
+        "name": "tmai_chain",
+        "rpcUrl": "http://127.0.0.1:3050/",
+        "l1Network": {
+          "id": 97,
+          "name": "bsc-testnet",
+          "network": "bsc-testnet",
+          "nativeCurrency": {
+            "name": "Test BNB",
+            "symbol": "tBNB",
+            "decimals": 18
+          },
+          "rpcUrls": {
+            "default": {
+              "http": [
+                "http://13.212.114.138:10575"
+              ]
+            },
+            "public": {
+              "http": [
+                "http://13.212.114.138:10575"
+              ]
+            }
+          }
+        }
+      },
+      "tokens": [
+        {
+          "address": "0x000000000000000000000000000000000000800A",
+          "symbol": "tMAI",
+          "decimals": 18,
+          "l1Address": "0xc42f240c256f5fb97346b9d69d10e2e1d77b2eba",
+          "name": "Test Matrix DAO"
+        }
+      ]
+    }
+  ]
+}

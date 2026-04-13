@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:14
+    container_name: tmai-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: notsecurepassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: postgres -c max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tmai-network
+
+  # 链初始化服务（一次性运行）
+  tmai-init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tmai
+    container_name: tmai-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # L1 配置
+      L1_CHAIN_ID: 97
+      L1_RPC_URL: http://13.212.114.138:10575
+      L1_WS_URL: ws://13.212.114.138:10576
+      
+      # 数据库配置
+      DATABASE_HOST: postgres
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: notsecurepassword
+      
+      # Base Token
+      BASE_TOKEN_ADDRESS: "0xC42F240C256F5FB97346b9d69d10E2e1D77b2EBa"
+      
+      # 钱包私钥
+      OPERATOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      GOVERNOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      DEPLOYER_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      
+      RUST_LOG: info
+    volumes:
+      - chain_data:/app/tmai_ecosystem
+    command: /bin/bash /app/docker/init-chain.sh
+    networks:
+      - tmai-network
+    profiles:
+      - init
+
+  # tMai Chain 服务器
+  tmai-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.tmai
+    container_name: tmai-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # L1 配置
+      L1_CHAIN_ID: 97
+      L1_RPC_URL: http://13.212.114.138:10575
+      L1_WS_URL: ws://13.212.114.138:10576
+      
+      # 数据库配置
+      DATABASE_HOST: postgres
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: notsecurepassword
+      DATABASE_URL: postgres://postgres:notsecurepassword@postgres:5432/zksync_server_bsc_testnet_tmai_chain
+      
+      # Base Token
+      BASE_TOKEN_ADDRESS: "0xC42F240C256F5FB97346b9d69d10E2e1D77b2EBa"
+      
+      # 钱包私钥
+      OPERATOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      GOVERNOR_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      DEPLOYER_PRIVATE_KEY: "0xc9fd9d8eedf1d07a3ff46bd7370c48db3b4c359f4d0dfd73404c3a27f687dae1"
+      
+      # 日志
+      RUST_LOG: info,zksync=debug
+      RUST_BACKTRACE: 1
+    ports:
+      - "3050:3050"  # HTTP RPC
+      - "3051:3051"  # WebSocket RPC
+      - "3071:3071"  # Health check
+      - "3312:3312"  # Prometheus metrics
+    volumes:
+      - chain_data:/app/tmai_ecosystem
+    restart: unless-stopped
+    networks:
+      - tmai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3071/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  chain_data:
+
+networks:
+  tmai-network:
+    driver: bridge

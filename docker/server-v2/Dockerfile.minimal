@@ -1,0 +1,42 @@
+# Minimal server-v2 Dockerfile (without prover dependencies)
+# syntax=docker/dockerfile:experimental
+FROM ghcr.io/matter-labs/zksync-build-base:latest AS builder
+
+# 安装 git（cargo 需要它来克隆依赖）
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/zksync
+
+COPY rust-toolchain rust-toolchain
+
+RUN rustup install "nightly-2025-03-19" && rustup default "nightly-2025-03-19"
+
+COPY . .
+
+RUN cargo build --manifest-path ./core/Cargo.toml --release --features=rocksdb/io-uring --bin zksync_server
+
+FROM ghcr.io/matter-labs/zksync-runtime-base:latest
+
+RUN apt-get update && apt-get install -y liburing-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+EXPOSE 3050
+EXPOSE 3051
+EXPOSE 3071
+EXPOSE 3312
+
+COPY --from=builder /usr/src/zksync/core/target/release/zksync_server /usr/bin/
+COPY contracts/system-contracts/zkout/ /contracts/system-contracts/zkout/
+COPY contracts/l1-contracts/out/ /contracts/l1-contracts/out/
+COPY contracts/l1-contracts/zkout/ /contracts/l1-contracts/zkout/
+COPY contracts/l2-contracts/zkout/ /contracts/l2-contracts/zkout/
+COPY etc/tokens/ /etc/tokens/
+COPY etc/ERC20/ /etc/ERC20/
+COPY etc/multivm_bootloaders/ /etc/multivm_bootloaders/
+COPY core/lib/dal/migrations/ /migrations/
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3071/health || exit 1
+
+ENTRYPOINT ["zksync_server"]

@@ -1,0 +1,52 @@
+services:
+  tmai-server:
+    image: tmai-server:2.0
+    container_name: tmai-server
+    command: 
+      - "--config-path=/app/tmai_ecosystem/chains/tmai_chain/configs/general.yaml"
+      - "--secrets-path=/app/tmai_ecosystem/chains/tmai_chain/configs/secrets.yaml"
+      - "--contracts-config-path=/app/tmai_ecosystem/chains/tmai_chain/configs/contracts.yaml"
+      - "--wallets-path=/app/tmai_ecosystem/chains/tmai_chain/configs/wallets.yaml"
+      - "--genesis-path=/app/tmai_ecosystem/chains/tmai_chain/configs/genesis.yaml"
+    environment:
+      # L1 配置
+      L1_CHAIN_ID: 97
+      L1_RPC_URL: http://13.212.114.138:10575
+      L1_WS_URL: ws://13.212.114.138:10576
+      
+      # 数据库配置（连接到已运行的 tmai-postgres 容器）
+      DATABASE_HOST: tmai-postgres
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: notsecurepassword
+      DATABASE_URL: postgres://postgres:notsecurepassword@tmai-postgres:5432/zksync_server_bsc_testnet_tmai_chain
+      
+      # Base Token
+      BASE_TOKEN_ADDRESS: "0xC42F240C256F5FB97346b9d69d10E2e1D77b2EBa"
+      
+      # 钱包私钥（从 wallets.yaml 读取）
+      OPERATOR_PRIVATE_KEY: "0xe7eec88f4f00f1a247916f312bfd3a805a26a9f2eff10c139d319310f8b2123a"
+      GOVERNOR_PRIVATE_KEY: "0x726422148528f98924439ab5d52d28809ff308b62aeca4e5e878122b14495474"
+      DEPLOYER_PRIVATE_KEY: "0xd5bcad58ed9173df874df6ed0837990443b78ff84acce948b5082ae038561d57"
+      
+      # 日志
+      RUST_LOG: info,zksync=debug
+      RUST_BACKTRACE: 1
+    ports:
+      - "3050:3050"  # HTTP RPC
+      - "3051:3051"  # WebSocket RPC
+      - "3071:3071"  # Health check
+      - "3312:3312"  # Prometheus metrics
+    volumes:
+      - ./tmai_ecosystem:/app/tmai_ecosystem
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3071/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  default:
+    name: node_tmai-network
+    external: true

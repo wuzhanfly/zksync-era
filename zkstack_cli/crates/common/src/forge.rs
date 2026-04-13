@@ -100,7 +100,8 @@ impl ForgeScript {
         for attempt in 0..=max_retries {
             if attempt > 0 {
                 println!("🔄 Retry attempt {} of {}", attempt, max_retries);
-                std::thread::sleep(std::time::Duration::from_secs(2_u64.pow(attempt - 1))); // Exponential backoff
+                std::thread::sleep(std::time::Duration::from_secs(2_u64.pow(attempt - 1)));
+                // Exponential backoff
             }
 
             // Clone args_no_resume for each attempt
@@ -140,7 +141,11 @@ impl ForgeScript {
 
         // If we get here, all retries failed
         if let Some(error) = last_error {
-            return Err(anyhow::anyhow!("All {} retry attempts failed. Last error: {}", max_retries, error));
+            return Err(anyhow::anyhow!(
+                "All {} retry attempts failed. Last error: {}",
+                max_retries,
+                error
+            ));
         }
 
         Ok(())
@@ -592,5 +597,7 @@ fn should_retry_error(error: &crate::cmd::CmdError) -> bool {
         "malformed response",
     ];
 
-    retry_patterns.iter().any(|pattern| error_str.contains(pattern))
+    retry_patterns
+        .iter()
+        .any(|pattern| error_str.contains(pattern))
 }

@@ -1,0 +1,48 @@
+# ZKsync Era tMai Chain Docker Image
+FROM ubuntu:22.04
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV RUST_VERSION=1.83.0
+ENV NODE_VERSION=18
+
+# 安装基础依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    postgresql-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${RUST_VERSION}
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# 安装 Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g yarn
+
+# 创建工作目录
+WORKDIR /app
+
+# 复制项目文件
+COPY . .
+
+# 构建项目
+RUN cargo build --release
+
+# 安装 zkstack CLI
+RUN cargo install --path zkstack_cli/crates/zkstack --locked
+
+# 暴露端口
+EXPOSE 3050 3051 3071 3312
+
+# 启动脚本
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

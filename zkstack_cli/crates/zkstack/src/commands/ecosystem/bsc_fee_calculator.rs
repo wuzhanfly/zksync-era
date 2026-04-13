@@ -41,7 +41,10 @@ pub struct OptimizationRecommendation {
 
 impl BscFeeCalculator {
     pub fn new(l1_network: L1Network, rpc_url: String) -> Self {
-        Self { l1_network, rpc_url }
+        Self {
+            l1_network,
+            rpc_url,
+        }
     }
 
     /// 分析 BSC 网络并生成费用优化建议
@@ -49,26 +52,29 @@ impl BscFeeCalculator {
         println!("🔍 分析 BSC 网络费用结构...");
 
         let provider = get_ethers_provider(&self.rpc_url)?;
-        
+
         // 获取当前网络状态
         let gas_price = provider.get_gas_price().await?;
         let latest_block = provider.get_block_number().await?;
         let _block = provider.get_block(latest_block).await?;
 
         let gas_price_gwei = gas_price.as_u64() as f64 / 1e9;
-        
+
         println!("📊 当前网络状态:");
         println!("   Gas 价格: {:.2} Gwei", gas_price_gwei);
         println!("   最新区块: {}", latest_block);
 
         // 计算优化参数
         let analysis = self.calculate_optimized_parameters(gas_price_gwei).await?;
-        
+
         println!("✅ 费用分析完成");
         Ok(analysis)
     }
 
-    async fn calculate_optimized_parameters(&self, current_gas_price_gwei: f64) -> Result<BscFeeAnalysis> {
+    async fn calculate_optimized_parameters(
+        &self,
+        current_gas_price_gwei: f64,
+    ) -> Result<BscFeeAnalysis> {
         let network_name = match self.l1_network {
             L1Network::BscMainnet => "BSC Mainnet",
             L1Network::BscTestnet => "BSC Testnet",
@@ -122,7 +128,7 @@ impl BscFeeCalculator {
                 let bnb_price_usd = 1000.0; // 假设 BNB 价格
                 let target_cost_usd = 0.01; // 目标：1 美分每笔交易
                 let gas_per_tx = 21000.0; // 标准转账 gas
-                
+
                 (target_cost_usd / bnb_price_usd * 1e18 / gas_per_tx) as u64
             }
             L1Network::BscTestnet => {
@@ -147,7 +153,7 @@ impl BscFeeCalculator {
     fn calculate_batch_overhead(&self, l1_gas_price_gwei: f64) -> u64 {
         // BSC 的批次开销应该大幅低于以太坊
         let ethereum_batch_overhead = 800_000u64; // 以太坊典型值
-        
+
         let bsc_reduction_factor = match self.l1_network {
             L1Network::BscMainnet => {
                 // 主网：根据实际 gas 成本差异计算
@@ -187,8 +193,8 @@ impl BscFeeCalculator {
         let l2_cost_wei = l2_gas_used * l2_gas_price_wei;
 
         // L1 批次成本分摊
-        let l1_cost_per_tx_wei = (batch_overhead_gas as f64 / transactions_per_batch) 
-            * l1_gas_price_gwei * 1e9;
+        let l1_cost_per_tx_wei =
+            (batch_overhead_gas as f64 / transactions_per_batch) * l1_gas_price_gwei * 1e9;
 
         // 总成本 (wei)
         let total_cost_wei = l2_cost_wei as f64 + l1_cost_per_tx_wei;
@@ -295,7 +301,7 @@ impl BscFeeCalculator {
     /// 生成配置文件更新建议
     pub fn generate_config_updates(&self, analysis: &BscFeeAnalysis) -> String {
         let mut config = String::new();
-        
+
         config.push_str("# BSC 优化配置建议\n");
         config.push_str("# 基于实时网络分析生成\n\n");
 
@@ -365,25 +371,41 @@ pub async fn analyze_bsc_fees(
 fn print_analysis_report(analysis: &BscFeeAnalysis) {
     println!("\n🎯 BSC 费用优化分析报告");
     println!("═══════════════════════════════════════");
-    
+
     println!("\n📊 网络状态");
     println!("   网络: {}", analysis.network);
-    println!("   当前 Gas 价格: {:.2} Gwei", analysis.current_gas_price_gwei);
-    
+    println!(
+        "   当前 Gas 价格: {:.2} Gwei",
+        analysis.current_gas_price_gwei
+    );
+
     println!("\n💰 费用优化建议");
-    println!("   推荐 L2 Gas 价格: {} wei ({:.3} Gwei)", 
-             analysis.recommended_l2_gas_price_wei,
-             analysis.recommended_l2_gas_price_wei as f64 / 1e9);
+    println!(
+        "   推荐 L2 Gas 价格: {} wei ({:.3} Gwei)",
+        analysis.recommended_l2_gas_price_wei,
+        analysis.recommended_l2_gas_price_wei as f64 / 1e9
+    );
     println!("   批次开销: {} gas", analysis.batch_overhead_l1_gas);
-    println!("   Pubdata 价格缩放: {:.1}%", analysis.pubdata_price_scale_factor * 100.0);
-    
+    println!(
+        "   Pubdata 价格缩放: {:.1}%",
+        analysis.pubdata_price_scale_factor * 100.0
+    );
+
     println!("\n💵 成本分析");
-    println!("   预估交易成本: ${:.4} USD", analysis.estimated_tx_cost_usd);
-    println!("   以太坊交易成本: ${:.2} USD", analysis.cost_comparison_vs_ethereum.ethereum_cost_usd);
-    println!("   节省金额: ${:.2} USD ({:.1}%)", 
-             analysis.cost_comparison_vs_ethereum.savings_usd,
-             analysis.cost_comparison_vs_ethereum.savings_percentage);
-    
+    println!(
+        "   预估交易成本: ${:.4} USD",
+        analysis.estimated_tx_cost_usd
+    );
+    println!(
+        "   以太坊交易成本: ${:.2} USD",
+        analysis.cost_comparison_vs_ethereum.ethereum_cost_usd
+    );
+    println!(
+        "   节省金额: ${:.2} USD ({:.1}%)",
+        analysis.cost_comparison_vs_ethereum.savings_usd,
+        analysis.cost_comparison_vs_ethereum.savings_percentage
+    );
+
     println!("\n🔧 优化建议");
     for (i, rec) in analysis.optimization_recommendations.iter().enumerate() {
         println!("   {}. {} (影响: {})", i + 1, rec.parameter, rec.impact);

@@ -163,9 +163,12 @@ pub(crate) async fn run(shell: &Shell, args: ChainCommands) -> anyhow::Result<()
         }
         ChainCommands::SetDAValidatorPair(args) => set_da_validator_pair::run(args, shell).await,
         ChainCommands::Gateway(args) => gateway::run(shell, args).await,
-        ChainCommands::OptimizeForBsc { chain, network_type, apply, output } => {
-            optimize_for_bsc(shell, chain, network_type, apply, output).await
-        }
+        ChainCommands::OptimizeForBsc {
+            chain,
+            network_type,
+            apply,
+            output,
+        } => optimize_for_bsc(shell, chain, network_type, apply, output).await,
         ChainCommands::ValidateBscConfig { chain, detailed } => {
             validate_bsc_config(shell, chain, detailed).await
         }
