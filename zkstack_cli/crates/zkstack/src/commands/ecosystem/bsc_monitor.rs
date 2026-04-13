@@ -1,7 +1,8 @@
+use std::time::{Duration, Instant};
+
 use anyhow::Result;
 use ethers::{providers::Middleware, types::U256};
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use zkstack_cli_common::ethereum::get_ethers_provider;
 use zkstack_cli_types::L1Network;

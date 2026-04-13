@@ -16,7 +16,6 @@ use zksync_node_framework::{
     wiring_layer::{WiringError, WiringLayer},
     FromContext, IntoContext,
 };
-
 use zksync_types::L1ChainId;
 
 use crate::{network_aware::detect_network_type, EthTxManager};

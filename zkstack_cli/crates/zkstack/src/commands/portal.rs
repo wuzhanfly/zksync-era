@@ -212,9 +212,10 @@ fn portal_app_name(ecosystem_name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use zkstack_cli_config::ChainConfig;
     use zkstack_cli_types::{BaseToken, L1Network};
+
+    use super::*;
 
     #[test]
     fn test_bsc_token_info_creation() {
